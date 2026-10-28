@@ -181,6 +181,45 @@ describe('журнал и отметки оператора', () => {
   });
 });
 
+describe('аудит: граничные случаи', () => {
+  it('отключение станции администратором закрывает её активное предупреждение (STATION_DISABLED)', async () => {
+    const s = await simApp();
+    const { body } = await s.post('/api/simulation/start', { scenarioId: 'RAPID_FLOOD', seed: 42, virtualStart: START });
+    await s.run(25);
+    await s.post('/api/simulation/pause');
+    const active = alertsOf(s.db, body.run.id).find((a) => a.code === 'QRG-01' && Number(a.is_active) === 1)!;
+    await s.app.inject({ method: 'DELETE', url: '/api/admin/stations/1', headers: { cookie: s.admin } });
+    const after = alertsOf(s.db, body.run.id).find((a) => a.id === active.id)!;
+    expect(Number(after.is_active)).toBe(0);
+    const ev = await s.get(`/api/alerts/${active.id}/events`);
+    expect(ev.body.events.at(-1)).toMatchObject({ type: 'CLEARED', comment: 'STATION_DISABLED' });
+    expect(buildSnapshot(s.db, s.app.simulation, new Date().toISOString()).alerts.active.find((a) => a.stationCode === 'QRG-01')).toBeUndefined();
+  });
+
+  it('повторная отправка старого тика не открывает снятое предупреждение заново', async () => {
+    const s = await simApp();
+    const { body } = await s.post('/api/simulation/runs', { scenarioId: 'NORMAL', virtualStart: START, params: { levelNoiseCm: 0, levelDailyAmplitudeCm: 0, totalTicks: 100 } });
+    const runId = body.run.id;
+    for (let i = 0; i < 4; i += 1) await s.post('/api/simulation/step');
+    // Два показания подряд выше опасного (одно — «неподтверждённый скачок» в модели T2) → HIGH и предупреждение.
+    for (let i = 0; i < 2; i += 1) {
+      await s.post('/api/simulation/interventions', { type: 'MANUAL_READING', stationCode: 'QRG-04', parameter: 'water_level', value: 520 });
+      await s.post('/api/simulation/step');
+    }
+    for (let i = 0; i < 12; i += 1) await s.post('/api/simulation/step'); // снято
+    const before = alertsOf(s.db, runId).filter((a) => a.code === 'QRG-04');
+    expect(before).toHaveLength(1);
+    expect(Number(before[0]!.is_active)).toBe(0);
+    // Тот же пакет тика 5 (HIGH) приходит повторно (например, после сбоя сети): измерения — дубли, предупреждения не меняются.
+    const m = s.db.prepare("SELECT measured_at FROM measurements m JOIN stations st ON st.id = m.station_id WHERE st.code = 'QRG-04' AND m.run_id = ? AND m.tick = 5").get(runId);
+    const { ingest } = await import('../src/telemetry/ingest');
+    const r = ingest(s.db, { kind: 'simulator' }, { runId, tick: 5, records: [{ stationCode: 'QRG-04', parameter: 'water_level', value: 520, unit: 'cm', measuredAt: String(m?.measured_at) }] }, new Date().toISOString());
+    expect(r.duplicates).toBe(1);
+    expect(r.alerts).toEqual([]);
+    expect(alertsOf(s.db, runId).filter((a) => a.code === 'QRG-04')).toHaveLength(1);
+  });
+});
+
 describe('сохранение после перезапуска', () => {
   const dirs: string[] = [];
   afterEach(() => {

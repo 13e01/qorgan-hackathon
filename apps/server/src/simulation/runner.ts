@@ -281,9 +281,11 @@ export class SimulationRunner {
     return this.serialize(() => {
       const run = this.requireLive();
       this.clearTimer();
-      updateRun(this.deps.db, run.id, { status: 'STOPPED', stoppedAt: this.nowIso() });
-      closeRunAlerts(this.deps.db, run.id, this.nowIso());
-      this.audit(userId, 'SIM_STOP', run.id);
+      transaction(this.deps.db, () => {
+        updateRun(this.deps.db, run.id, { status: 'STOPPED', stoppedAt: this.nowIso() });
+        closeRunAlerts(this.deps.db, run.id, this.nowIso());
+        this.audit(userId, 'SIM_STOP', run.id);
+      });
       this.changed();
       return this.state();
     });
@@ -419,9 +421,11 @@ export class SimulationRunner {
 
   private complete(run: RunInfo): void {
     this.clearTimer();
-    updateRun(this.deps.db, run.id, { status: 'COMPLETED', finishedAt: this.nowIso() });
-    closeRunAlerts(this.deps.db, run.id, this.nowIso());
-    this.audit(null, 'SIM_COMPLETE', run.id);
+    transaction(this.deps.db, () => {
+      updateRun(this.deps.db, run.id, { status: 'COMPLETED', finishedAt: this.nowIso() });
+      closeRunAlerts(this.deps.db, run.id, this.nowIso());
+      this.audit(null, 'SIM_COMPLETE', run.id);
+    });
     this.changed();
   }
 

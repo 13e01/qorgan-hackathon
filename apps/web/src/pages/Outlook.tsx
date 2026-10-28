@@ -1,10 +1,10 @@
 // «Прогноз по реке»: сколько часов есть у каждого населённого пункта до прихода воды и насколько этому можно верить.
 // Все числа считает сервер (GET /api/outlook, /api/outlook/verification); интерфейс только рисует.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { api } from '../api/client';
-import type { Crossing, OutlookResult, StationOutlook, StationVerification } from '../api/shared';
+import type { Crossing, OutlookPoint, OutlookResult, StationOutlook, StationVerification } from '../api/shared';
 import type { EvaluationContext } from '../api/types';
 import { Disclosure, Icon, Val } from '../components/ui';
 import { useI18n } from '../i18n';
@@ -14,33 +14,62 @@ import { usePalette } from '../state/theme';
 
 const H = 3_600_000;
 
-/** Прогноз по реке на текущее виртуальное время; перезапрашивается при новых данных, не чаще раза в секунду. */
-export function useOutlook(): { outlook: OutlookResult | null; context: EvaluationContext | null; error: string | null } {
+interface OutlookState {
+  outlook: OutlookResult | null;
+  context: EvaluationContext | null;
+  error: string | null;
+}
+
+const EMPTY: OutlookState = { outlook: null, context: null, error: null };
+const OutlookCtx = createContext<OutlookState>(EMPTY);
+
+/**
+ * Один общий загрузчик прогноза по реке для всего интерфейса (строка на главной, панель демо, страница).
+ * Запрос — не чаще раза в секунду; если пока ждём, пришли новые тики, ответ всё равно применяется,
+ * а устаревшие ответы (пришедшие после более нового запроса) отбрасываются по номеру запроса.
+ */
+export function OutlookProvider({ children }: { children: ReactNode }) {
   const { user, live, describeError } = useStore();
   const vt = live.snapshot?.context.virtualTime ?? null;
   const runId = live.snapshot?.context.runId ?? null;
-  const [state, setState] = useState<{ outlook: OutlookResult | null; context: EvaluationContext | null; error: string | null }>({ outlook: null, context: null, error: null });
+  const [state, setState] = useState<OutlookState>(EMPTY);
+  const seq = useRef(0);
   const last = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
-    if (!user) return;
-    let alive = true;
-    const load = () => {
+    if (!user) {
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = null;
+      seq.current += 1;
+      setState(EMPTY);
+      return;
+    }
+    if (timer.current) return; // уже запланирован — к моменту запроса возьмёт самые свежие данные
+    timer.current = setTimeout(() => {
+      timer.current = null;
       last.current = Date.now();
+      seq.current += 1;
+      const mine = seq.current;
       api
         .get<{ outlook: OutlookResult | null; context: EvaluationContext }>('/api/outlook')
-        .then((r) => alive && setState({ outlook: r.outlook, context: r.context, error: null }))
-        .catch((err) => alive && setState((s) => ({ ...s, error: describeError(err) })));
-    };
-    const wait = Math.max(0, 1000 - (Date.now() - last.current));
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(load, wait);
-    return () => {
-      alive = false;
-      if (timer.current) clearTimeout(timer.current);
-    };
+        .then((r) => mine === seq.current && setState({ outlook: r.outlook, context: r.context, error: null }))
+        .catch((err) => mine === seq.current && setState((s) => ({ ...s, error: describeError(err) })));
+    }, Math.max(0, 1000 - (Date.now() - last.current)));
   }, [user, vt, runId, describeError]);
-  return user ? state : { outlook: null, context: null, error: null };
+
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+
+  return <OutlookCtx.Provider value={state}>{children}</OutlookCtx.Provider>;
+}
+
+export function useOutlook(): OutlookState {
+  return useContext(OutlookCtx);
 }
 
 /** Короткая фраза о времени до порога: «через ≈ 94 ч (92–98)», «уже выше», «не ожидается в пределах 102 ч». */
@@ -64,22 +93,24 @@ export function useCrossingText() {
   };
 }
 
-/** Полоса станции на шкале «сейчас → +H ч»: где прогноз выше порога предупреждения и опасного (сплошь — по центру, штриховка — только по верхней границе). */
-function Lane({ st, maxH, warningCm, dangerCm }: { st: StationOutlook; maxH: number; warningCm: number | null; dangerCm: number | null }) {
+const ZONE_CLASS: Record<OutlookPoint['zone'], string> = {
+  OK: 'ok',
+  WARNING_POSSIBLE: 'w-maybe',
+  WARNING: 'w',
+  DANGER_POSSIBLE: 'd-maybe',
+  DANGER: 'd',
+};
+
+/** Полоса станции на шкале «сейчас → +H ч». Зоны каждой точки (выше какого порога) приходят с сервера. */
+function Lane({ st, maxH }: { st: StationOutlook; maxH: number }) {
   const W = 1000;
   const x = (h: number) => (h / maxH) * W;
   const segs: Array<{ from: number; to: number; cls: string }> = [];
-  const push = (h: number, cls: string) => {
-    const last = segs.at(-1);
-    if (last && last.cls === cls && last.to === h - 1) last.to = h;
-    else segs.push({ from: h - 1, to: h, cls });
-  };
   for (const p of st.points) {
-    if (dangerCm !== null && p.levelCm >= dangerCm) push(p.h, 'd');
-    else if (dangerCm !== null && p.highCm >= dangerCm) push(p.h, 'd-maybe');
-    else if (warningCm !== null && p.levelCm >= warningCm) push(p.h, 'w');
-    else if (warningCm !== null && p.highCm >= warningCm) push(p.h, 'w-maybe');
-    else push(p.h, 'ok');
+    const cls = ZONE_CLASS[p.zone];
+    const last = segs.at(-1);
+    if (last && last.cls === cls && last.to === p.h - 1) last.to = p.h;
+    else segs.push({ from: p.h - 1, to: p.h, cls });
   }
   const nowAbove = st.danger.status === 'ALREADY_ABOVE' ? 'd' : st.warning.status === 'ALREADY_ABOVE' ? 'w' : null;
   return (
@@ -115,7 +146,6 @@ function RiverBoard({ outlook, selected, onSelect }: { outlook: OutlookResult; s
       </div>
       {outlook.stations.map((st) => {
         const meta = stations.find((s) => s.code === st.code);
-        const lvl = meta?.parameters.find((p) => p.code === 'water_level');
         const tone = st.danger.status === 'ALREADY_ABOVE' ? 'high' : st.danger.status === 'EXPECTED' ? 'high-soon' : st.warning.status === 'EXPECTED' || st.warning.status === 'ALREADY_ABOVE' ? 'medium' : 'calm';
         return (
           <button key={st.code} role="row" className={`rb-row${selected === st.code ? ' is-selected' : ''}`} onClick={() => onSelect(st.code)} aria-pressed={selected === st.code}>
@@ -126,7 +156,7 @@ function RiverBoard({ outlook, selected, onSelect }: { outlook: OutlookResult; s
               </span>
             </div>
             <div role="cell" className="rb-lane">
-              <Lane st={st} maxH={maxH} warningCm={lvl?.warning ?? null} dangerCm={lvl?.danger ?? null} />
+              <Lane st={st} maxH={maxH} />
             </div>
             <div role="cell" className={`rb-eta tone-${tone}`}>
               <span className="rb-eta-main">{text(st.danger, st.horizonH)}</span>

@@ -114,7 +114,7 @@ describe('TC-D03 резервная копия', () => {
     seed(source, TEST_USERS);
 
     const file = backupDb(source, join(dir, 'backups'), new Date('2026-10-28T12:34:56Z'));
-    expect(file).toMatch(/qorgan-20261028-123456\.db$/);
+    expect(file).toMatch(/qorgan-20261028-123456-000\.db$/);
     source.close();
 
     const copy = openDb(file);

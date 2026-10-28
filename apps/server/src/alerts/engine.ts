@@ -117,6 +117,23 @@ export function processAlerts(
   return changes;
 }
 
+/**
+ * Станция отключена администратором: её оценки больше не считаются, поэтому условие «три LOW подряд» не наступит.
+ * Активные предупреждения станции закрываются сразу (CLEARED, комментарий STATION_DISABLED), история сохраняется.
+ */
+export function closeStationAlerts(db: Db, stationId: number, now: string): number {
+  return transaction(db, () => {
+    const rows = db.prepare('SELECT id, last_tick FROM alerts WHERE station_id = ? AND is_active = 1').all(stationId);
+    const update = db.prepare('UPDATE alerts SET is_active = 0, cleared_tick = last_tick, updated_at = ? WHERE id = ?');
+    const event = db.prepare("INSERT INTO alert_events (alert_id, tick, type, user_id, comment, created_at) VALUES (?, ?, 'CLEARED', NULL, 'STATION_DISABLED', ?)");
+    for (const r of rows) {
+      update.run(now, Number(r.id));
+      event.run(Number(r.id), Number(r.last_tick), now);
+    }
+    return rows.length;
+  });
+}
+
 /** Прогон закончился (остановлен, завершён, сброшен): его активные предупреждения закрываются, история сохраняется. */
 export function closeRunAlerts(db: Db, runId: number, now: string): number {
   return transaction(db, () => {

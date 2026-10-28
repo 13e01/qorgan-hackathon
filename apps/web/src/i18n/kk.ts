@@ -631,4 +631,8 @@ export const kk: Record<MessageKey, string> = {
   'alerts.emptyAttention': 'Барлық ескертулер өңделді',
 
   'error.TOO_MANY_ATTEMPTS': 'Кіру әрекеттері тым көп сәтсіз болды. 10 минут күтіңіз.',
+
+  'alert.stationDisabled': 'станцияны әкімші өшірді',
+  'admin.invalidNumber': 'Сандарды тексеріңіз: өрісте сан болуы керек (бөлшек бөлігі — нүкте немесе үтір арқылы).',
+  'admin.model.noChanges': 'Өзгеріс жоқ — модель нұсқасы өзгермеді',
 };

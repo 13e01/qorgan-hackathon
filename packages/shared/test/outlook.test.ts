@@ -95,6 +95,11 @@ describe('время до порогов', () => {
     expect(d.latestH === null || d.latestH >= 30).toBe(true);
     expect(r.stations[1]!.warning).toMatchObject({ status: 'EXPECTED', h: 20 });
     expect(r.stations[1]!.peak).toMatchObject({ levelCm: 500, atHorizonEnd: true });
+    // Зоны для интерфейса считает модуль, а не браузер.
+    const b = r.stations[1]!;
+    expect(b.points.find((p) => p.h === 30)!.zone).toBe('DANGER');
+    expect(b.points.find((p) => p.h === 20)!.zone).toBe('WARNING');
+    expect(b.points.find((p) => p.h === 1)!.zone).toBe('OK');
   });
 
   it('уровень уже выше порога / подъёма нет / порог не задан', () => {
@@ -161,4 +166,16 @@ describe('проверка на истории', () => {
     expect(b.danger.actualTime).toBe(at(54));
     expect(b.danger.outlookLeadH).toBe(24);
   });
+
+  it('производительность: проверка 1000-часового прогона по 4 станциям — меньше секунды', () => {
+    const stations = [st('A', null, null), st('B', 'A', 51, { responseHours: 6 }), st('C', 'B', 51, { responseHours: 6 }), st('D', 'C', 17, { responseHours: 3 })];
+    const wave = (h: number) => 300 + 200 * Math.max(0, Math.sin((h - 50) / 80));
+    const levels = { A: series(0, 999, wave), B: series(0, 999, (h) => wave(h - 51)), C: series(0, 999, (h) => wave(h - 102)), D: series(0, 999, (h) => wave(h - 119)) };
+    const started = Date.now();
+    const v = verifyOutlook({ stations, levels, issueTimes: Array.from({ length: 1000 }, (_, i) => at(i)), leadH: 24 });
+    const ms = Date.now() - started;
+    expect(v.find((x) => x.code === 'C')!.samples).toBeGreaterThan(800);
+    expect(ms).toBeLessThan(1000);
+  });
 });
+

@@ -630,4 +630,8 @@ export const en: Record<MessageKey, string> = {
   'alerts.emptyAttention': 'All alerts have been handled',
 
   'error.TOO_MANY_ATTEMPTS': 'Too many failed sign-in attempts. Please wait 10 minutes.',
+
+  'alert.stationDisabled': 'station disabled by an administrator',
+  'admin.invalidNumber': 'Check the numbers: the field must contain a number (decimal point or comma).',
+  'admin.model.noChanges': 'No changes — the model version stays the same',
 };

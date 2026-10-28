@@ -2595,6 +2595,11 @@ button.rb-row:hover {
     display: none;
   }
 
+  /* На узком экране подписи шкалы через одну (0, +48, +96 ч), иначе они наезжают друг на друга. */
+  .rb-axis .rb-lane span:nth-child(even) {
+    display: none;
+  }
+
   .rb-eta {
     text-align: right;
   }

@@ -24,6 +24,10 @@ export function authRoutes(db: Db, sessionTtlHours: number, options: { secureCoo
   const failures = new Map<string, number[]>();
   const recentFailures = (ip: string) => {
     const since = now().getTime() - FAILURE_WINDOW_MS;
+    // Не даём таблице расти без предела (много разных IP): изредка вычищаем все устаревшие записи.
+    if (failures.size > 1000) {
+      for (const [key, list] of failures) if (list.every((t) => t <= since)) failures.delete(key);
+    }
     const list = (failures.get(ip) ?? []).filter((t) => t > since);
     if (list.length) failures.set(ip, list);
     else failures.delete(ip);

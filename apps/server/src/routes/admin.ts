@@ -12,6 +12,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { DEFAULT_RISK_CONFIG, PARAMETER_CODES, ROLES, STATION_STATUSES, STATION_TYPES, resolveRiskConfig } from '@qorgan/shared';
+import { closeStationAlerts } from '../alerts/engine';
 import { requireRole } from '../auth/plugin';
 import { hashPassword } from '../auth/password';
 import { backupDb } from '../db/backup';
@@ -207,6 +208,7 @@ export function adminRoutes(db: Db, now: () => Date, onChanged: () => void, opti
         set('updated_at', now().toISOString());
         db.prepare(`UPDATE stations SET ${sets.join(', ')} WHERE id = ?`).run(...values, id);
         const after = stationRow(id)!;
+        if (after.status === 'disabled' && before.status !== 'disabled') closeStationAlerts(db, id, now().toISOString());
         if (after.upstreamCode !== null && after.travelHours === null) {
           throw new AppError(400, 'TRAVEL_HOURS_REQUIRED', 'Для станции ниже по течению укажите время добегания');
         }
@@ -222,6 +224,7 @@ export function adminRoutes(db: Db, now: () => Date, onChanged: () => void, opti
       const before = requireStation(id);
       transaction(db, () => {
         db.prepare("UPDATE stations SET status = 'disabled', updated_at = ? WHERE id = ?").run(now().toISOString(), id);
+        closeStationAlerts(db, id, now().toISOString());
         audit(request, 'STATION_DISABLE', 'station', id, { status: before.status }, { status: 'disabled' });
       });
       onChanged();

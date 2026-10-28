@@ -160,7 +160,9 @@ export function ingest(db: Db, sender: Sender, req: IngestRequest, now: string):
     const evaluations = evaluator.evaluateAll();
     persistAssessments(db, run.id, tick, evaluations, evaluator.configVersion);
     // Предупреждения — в той же транзакции, что и оценки, которые их вызвали (ТЗ §5.6).
-    const alerts = processAlerts(db, run.id, tick, evaluations, now, loadRiskConfig(db).config.clearAfterLowCount);
+    // Повторная отправка старого тика (tick < часов прогона) не меняет предупреждения: иначе снятое могло бы «ожить».
+    const replay = run.currentTick !== null && tick < run.currentTick;
+    const alerts = replay ? [] : processAlerts(db, run.id, tick, evaluations, now, loadRiskConfig(db).config.clearAfterLowCount);
 
     return { runId: run.id, tick, virtualTime: tickTime, accepted, duplicates, rejected, evaluations, alerts };
   });

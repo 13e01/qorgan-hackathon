@@ -43,7 +43,13 @@ function Events({ alertId }: { alertId: number }) {
           <span>
             <b>{t(`alert.event.${e.type}`)}</b>
             {e.user && <span className="faint"> · {e.user}</span>}
-            {e.comment && <span> — {e.comment === 'RUN_ENDED' ? t('alert.runEnded') : e.comment}</span>}
+            {e.comment && (
+              <span>
+                {' — '}
+                {/* Системные причины переводятся, только если событие записала система (без автора). */}
+                {e.user === null && e.comment === 'RUN_ENDED' ? t('alert.runEnded') : e.user === null && e.comment === 'STATION_DISABLED' ? t('alert.stationDisabled') : e.comment}
+              </span>
+            )}
           </span>
         </li>
       ))}

@@ -64,6 +64,9 @@ export const DEFAULT_OUTLOOK_CONFIG: OutlookConfig = {
 export type OutlookMethod = 'ROUTED' | 'TREND' | 'NONE';
 export type OutlookIssue = 'NO_DATA' | 'NO_BASE_LEVEL' | 'UPSTREAM_NO_DATA' | 'INSUFFICIENT_DATA';
 
+/** Зона точки прогноза относительно порогов станции: выше опасного / выше предупредительного — по центру или только по верхней границе. */
+export type OutlookZone = 'OK' | 'WARNING_POSSIBLE' | 'WARNING' | 'DANGER_POSSIBLE' | 'DANGER';
+
 export interface OutlookPoint {
   /** Часы от момента прогноза (1, 2, …). */
   h: number;
@@ -71,6 +74,15 @@ export interface OutlookPoint {
   levelCm: number;
   lowCm: number;
   highCm: number;
+  zone: OutlookZone;
+}
+
+function zoneOf(level: number, high: number, s: OutlookStation): OutlookZone {
+  if (s.dangerCm !== null && level >= s.dangerCm) return 'DANGER';
+  if (s.dangerCm !== null && high >= s.dangerCm) return 'DANGER_POSSIBLE';
+  if (s.warningCm !== null && level >= s.warningCm) return 'WARNING';
+  if (s.warningCm !== null && high >= s.warningCm) return 'WARNING_POSSIBLE';
+  return 'OK';
 }
 
 export type CrossingStatus = 'ALREADY_ABOVE' | 'EXPECTED' | 'NOT_EXPECTED' | 'NO_THRESHOLD' | 'NO_FORECAST';
@@ -126,19 +138,53 @@ export interface OutlookInput {
 
 const round1 = (x: number) => Math.round(x * 10) / 10;
 
-/** Часовая сетка измерений станции относительно asOf: ключ — час (0 = asOf, −1 = час назад …). */
-function hourlyGrid(points: readonly MeasurementPoint[], asOfMs: number): Map<number, number> {
-  const grid = new Map<number, number>();
-  const sorted = [...points]
+/** Ряд станции, разобранный один раз: измерения по абсолютным часам с точным временем (чтобы отсекать будущее). */
+interface ParsedSeries {
+  byHour: Map<number, Array<{ t: number; v: number }>>;
+  firstT: number | null;
+}
+
+function parseSeries(points: readonly MeasurementPoint[]): ParsedSeries {
+  const byHour = new Map<number, Array<{ t: number; v: number }>>();
+  const sorted = points
     .map((p) => ({ t: Date.parse(p.measuredAt), v: p.value }))
-    .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.v) && p.t <= asOfMs)
+    .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.v))
     .sort((a, b) => a.t - b.t);
-  for (const p of sorted) grid.set(Math.round((p.t - asOfMs) / H), p.v);
-  return grid;
+  for (const p of sorted) {
+    const hour = Math.round(p.t / H);
+    const list = byHour.get(hour);
+    if (list) list.push(p);
+    else byHour.set(hour, [p]);
+  }
+  return { byHour, firstT: sorted[0]?.t ?? null };
+}
+
+/** Часовая сетка на момент asOf: ключ — час относительно asOf (0 = asOf, −1 = час назад …); всё позже asOf невидимо. */
+interface Grid {
+  get(h: number): number | undefined;
+  has(h: number): boolean;
+  /** Час первого измерения (относительно asOf) или null, если до asOf измерений нет. */
+  first: number | null;
+}
+
+function gridAt(series: ParsedSeries, asOfMs: number): Grid {
+  const base = Math.round(asOfMs / H);
+  const get = (h: number): number | undefined => {
+    const list = series.byHour.get(base + h);
+    if (!list) return undefined;
+    let value: number | undefined;
+    for (const p of list) if (p.t <= asOfMs) value = p.v;
+    return value;
+  };
+  return {
+    get,
+    has: (h) => get(h) !== undefined,
+    first: series.firstT === null || series.firstT > asOfMs ? null : Math.round(series.firstT / H) - base,
+  };
 }
 
 /** Значение на часе h: точное, иначе линейная интерполяция между соседями не дальше 2 ч. */
-function valueAt(grid: Map<number, number>, h: number): number | null {
+function valueAt(grid: Grid, h: number): number | null {
   const exact = grid.get(h);
   if (exact !== undefined) return exact;
   let before: [number, number] | null = null;
@@ -172,9 +218,14 @@ function crossing(points: OutlookPoint[], currentCm: number | null, threshold: n
 /** Прогноз по реке для всех станций на момент asOf. Чистая функция: без БД, сети и текущего времени. */
 export function computeOutlook(input: OutlookInput): OutlookResult {
   const cfg: OutlookConfig = { ...DEFAULT_OUTLOOK_CONFIG, ...input.config };
-  const asOfMs = Date.parse(input.asOf);
-  const byCode = new Map(input.stations.map((s) => [s.code, s]));
-  const grids = new Map(input.stations.map((s) => [s.code, hourlyGrid(input.levels[s.code] ?? [], asOfMs)]));
+  const parsed = new Map(input.stations.map((s) => [s.code, parseSeries(input.levels[s.code] ?? [])]));
+  return outlookAt(Date.parse(input.asOf), input.stations, parsed, cfg);
+}
+
+/** Расчёт по уже разобранным рядам — проверка на истории вызывает его для каждого часа без повторного разбора. */
+function outlookAt(asOfMs: number, stations: readonly OutlookStation[], parsed: Map<string, ParsedSeries>, cfg: OutlookConfig): OutlookResult {
+  const byCode = new Map(stations.map((s) => [s.code, s]));
+  const grids = new Map(stations.map((s) => [s.code, gridAt(parsed.get(s.code)!, asOfMs)]));
   const forecasts = new Map<string, Map<number, OutlookPoint>>();
   const results = new Map<string, StationOutlook>();
   const timeAt = (h: number) => new Date(asOfMs + h * H).toISOString();
@@ -183,7 +234,6 @@ export function computeOutlook(input: OutlookInput): OutlookResult {
    * Уровень станции на часе h: измерение (h ≤ 0) или её прогноз по маршруту (h > 0). Короткая экстраполяция тренда
    * истока вниз по течению НЕ передаётся: каскад строится только на измерениях и маршрутизации.
    */
-  const firstHour = new Map([...grids].map(([code, g]) => [code, g.size ? Math.min(...g.keys()) : null]));
   let backfilled = false;
   const levelOf = (code: string, h: number): number | null => {
     if (h > 0) return results.get(code)?.method === 'ROUTED' ? (forecasts.get(code)?.get(h)?.levelCm ?? null) : null;
@@ -192,8 +242,8 @@ export function computeOutlook(input: OutlookInput): OutlookResult {
     if (v !== null) return v;
     // Допущение: до начала наблюдений река стояла на первом измеренном уровне (иначе первые τ часов прогона
     // нижние станции оставались бы без прогноза). Использование допущения отмечается в результате.
-    const first = firstHour.get(code);
-    if (first !== null && first !== undefined && h < first) {
+    const first = g.first;
+    if (first !== null && h < first) {
       backfilled = true;
       return g.get(first)!;
     }
@@ -254,7 +304,7 @@ export function computeOutlook(input: OutlookInput): OutlookResult {
             const level = r + e0 * Math.exp(-h / cfg.errorDecayH);
             const upstreamBand = h - tau > 0 ? (forecasts.get(up.code)?.get(h - tau)?.highCm ?? 0) - (forecasts.get(up.code)?.get(h - tau)?.levelCm ?? 0) : 0;
             const half = Math.max(cfg.minBandCm, 1.5 * (resSd ?? 0)) + cfg.bandGrowthCmH * h * Math.sqrt(depth) + s.attenuation * Math.max(0, upstreamBand) * 0.5;
-            const p = { h, time: timeAt(h), levelCm: round1(level), lowCm: round1(Math.max(0, level - half)), highCm: round1(level + half) };
+            const p: OutlookPoint = { h, time: timeAt(h), levelCm: round1(level), lowCm: round1(Math.max(0, level - half)), highCm: round1(level + half), zone: zoneOf(round1(level), round1(level + half), s) };
             points.push(p);
             map.set(h, p);
           }
@@ -287,7 +337,7 @@ export function computeOutlook(input: OutlookInput): OutlookResult {
         for (let h = 1; h <= cfg.trendHorizonH; h += 1) {
           const level = currentCm + slope * h;
           const half = cfg.minBandCm + se * h;
-          const p = { h, time: timeAt(h), levelCm: round1(level), lowCm: round1(Math.max(0, level - half)), highCm: round1(level + half) };
+          const p: OutlookPoint = { h, time: timeAt(h), levelCm: round1(level), lowCm: round1(Math.max(0, level - half)), highCm: round1(level + half), zone: zoneOf(round1(level), round1(level + half), s) };
           points.push(p);
           map.set(h, p);
         }
@@ -311,8 +361,8 @@ export function computeOutlook(input: OutlookInput): OutlookResult {
     return result;
   };
 
-  for (const s of input.stations) solve(s, new Set());
-  return { model: 'QORGAN-ROUTE-1', demo: true, asOf: new Date(asOfMs).toISOString(), horizonH: cfg.horizonH, stations: input.stations.map((s) => results.get(s.code)!) };
+  for (const s of stations) solve(s, new Set());
+  return { model: 'QORGAN-ROUTE-1', demo: true, asOf: new Date(asOfMs).toISOString(), horizonH: cfg.horizonH, stations: stations.map((s) => results.get(s.code)!) };
 }
 
 // ── Проверка на истории (hindcast) ─────────────────────────────────────────────────────────────────────────────
@@ -346,7 +396,10 @@ export interface StationVerification {
 }
 
 export function verifyOutlook(input: VerificationInput): StationVerification[] {
-  const all = input.issueTimes.map((t) => computeOutlook({ asOf: t, stations: input.stations, levels: input.levels, config: input.config }));
+  const cfg: OutlookConfig = { ...DEFAULT_OUTLOOK_CONFIG, ...input.config };
+  // Ряды разбираются один раз; на каждый час — только «окно» до этого часа (без чтения будущих точек).
+  const parsed = new Map(input.stations.map((s) => [s.code, parseSeries(input.levels[s.code] ?? [])]));
+  const all = input.issueTimes.map((t) => outlookAt(Date.parse(t), input.stations, parsed, cfg));
   const grids = new Map(input.stations.map((s) => [s.code, new Map((input.levels[s.code] ?? []).map((p) => [Date.parse(p.measuredAt), p.value]))]));
   return input.stations.map((s) => {
     const grid = grids.get(s.code)!;

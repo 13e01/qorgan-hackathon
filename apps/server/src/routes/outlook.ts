@@ -48,6 +48,9 @@ function levelSeries(db: Db, runId: number, asOf: string, codes: string[]): Reco
 }
 
 export function outlookRoutes(db: Db, now: () => Date) {
+  // Проверка на истории считается синхронно (до ~0,3 с на 1000 ч). Повторные запросы для того же момента прогона
+  // и тех же настроек станций берутся из кэша, чтобы нажатия не блокировали сервер (тики, WebSocket).
+  let cache: { key: string; body: unknown } | null = null;
   return async (app: FastifyInstance) => {
     const operator = { preHandler: requireRole('operator') };
 
@@ -70,6 +73,8 @@ export function outlookRoutes(db: Db, now: () => Date) {
       if (evaluator.runId === null || !evaluator.run) return { context, leadH: q.leadH, items: [] };
       const runId = evaluator.runId;
       const stations = outlookStations(db);
+      const key = JSON.stringify([runId, evaluator.asOf, q.leadH, stations]);
+      if (cache?.key === key) return { ...(cache.body as object), context };
       const levels = levelSeries(db, runId, evaluator.asOf, stations.map((s) => s.code));
       const startMs = Date.parse(evaluator.run.simStart);
       const endMs = Date.parse(evaluator.asOf);
@@ -83,8 +88,7 @@ export function outlookRoutes(db: Db, now: () => Date) {
         `SELECT r.measured_at, r.eta_danger_h FROM risk_assessments r JOIN stations s ON s.id = r.station_id
          WHERE r.run_id = ? AND s.code = ? AND r.measured_at < ? ORDER BY r.tick DESC`,
       );
-      return {
-        context,
+      const body = {
         leadH: q.leadH,
         items: items.map((v) => {
           let localTrendLeadH: number | null = null;
@@ -99,6 +103,8 @@ export function outlookRoutes(db: Db, now: () => Date) {
           return { ...v, danger: { ...v.danger, localTrendLeadH } };
         }),
       };
+      cache = { key, body };
+      return { ...body, context };
     });
   };
 }

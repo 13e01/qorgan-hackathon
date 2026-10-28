@@ -209,9 +209,13 @@ describe('источники и резервная копия', () => {
     const cookie = await login(app, 'admin', 'admin-test-pass');
     const res = await app.inject({ method: 'POST', url: '/api/admin/backup', headers: { cookie } });
     expect(res.statusCode).toBe(200);
-    expect(res.json().file).toMatch(/^qorgan-\d{8}-\d{4,6}\.db$/);
+    expect(res.json().file).toMatch(/^qorgan-\d{8}-\d{6}-\d{3}(-\d+)?\.db$/);
     expect(res.body).not.toContain(dir.replace(/\\/g, '\\\\'));
     expect(readdirSync(dir)).toHaveLength(1);
+    // Вторая копия в ту же секунду — не ошибка 500, а отдельный файл.
+    const again = await app.inject({ method: 'POST', url: '/api/admin/backup', headers: { cookie } });
+    expect(again.statusCode).toBe(200);
+    expect(readdirSync(dir)).toHaveLength(2);
     await app.close();
   });
 });

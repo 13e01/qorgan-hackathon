@@ -2,6 +2,7 @@
 export type {
   Confidence as ConfidenceLevel,
   Crossing,
+  OutlookPoint,
   OutlookResult,
   StationOutlook,
   StationVerification,

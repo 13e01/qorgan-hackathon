@@ -46,11 +46,17 @@ declare module 'fastify' {
   }
 }
 
+/**
+ * Доверять только ближайшему узлу (обратному прокси Caddy): IP клиента — адрес, который прокси видел сам.
+ * `true` доверял бы любой цепочке X-Forwarded-For — подделав заголовок, можно было бы обойти ограничение попыток входа.
+ */
+const trustOneHop = (_address: string, hop: number) => hop < 1;
+
 /** Собирает приложение без запуска сервера — так его можно проверять в тестах через `app.inject()`. */
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const { db } = options;
   const now = options.now ?? (() => new Date());
-  const app = Fastify({ logger: options.logger ?? false, bodyLimit: 1_048_576, trustProxy: options.trustProxy ?? false });
+  const app = Fastify({ logger: options.logger ?? false, bodyLimit: 1_048_576, trustProxy: options.trustProxy ? trustOneHop : false });
   const indexFile = options.webRoot ? join(options.webRoot, 'index.html') : null;
   const spaIndexHtml = indexFile && existsSync(indexFile) ? readFileSync(indexFile, 'utf8') : undefined;
   registerErrorHandlers(app, { spaIndexHtml });

@@ -94,8 +94,16 @@ function StationEditor({ station, all, onDone }: { station: AdminStation | null;
   const [d, setD] = useState<StationDraft>(station ? toDraft(station) : emptyDraft);
   const set = (k: keyof StationDraft) => (e: { target: { value: string } }) => setD((x) => ({ ...x, [k]: e.target.value }));
 
+  const { notify } = useStore();
   const submit = async (e: FormEvent) => {
     e.preventDefault();
+    // Нечисловое значение не должно молча превратиться в «пусто» (NaN → null в JSON) — сообщаем и не отправляем.
+    const numeric: Array<keyof StationDraft> = ['lat', 'lon', 'attenuation', 'responseHours', 'baseLevelCm', 'warning', 'danger', ...(d.upstreamCode ? (['travelHours'] as const) : [])];
+    const bad = numeric.filter((k) => d[k].trim() !== '' && !Number.isFinite(Number(d[k].replace(',', '.'))));
+    if (bad.length) {
+      notify('error', t('admin.invalidNumber'));
+      return;
+    }
     const fields = {
       name: d.name.trim(),
       stationType: d.stationType,
@@ -436,6 +444,7 @@ const getPath = (o: unknown, path: string): number => path.split('.').reduce<unk
 
 function ModelTab() {
   const { t, lang } = useI18n();
+  const { notify } = useStore();
   const { busy, run } = useAction();
   const { data, reload, error } = useLoad<{ config: RiskConfig; defaults: RiskConfig; version: number; updatedAt: string }>('/api/admin/risk-config');
   const [values, setValues] = useState<Record<string, string>>({});
@@ -447,10 +456,21 @@ function ModelTab() {
     e.preventDefault();
     const body: Record<string, unknown> = {};
     for (const f of MODEL_FIELDS) {
-      const v = Number(String(values[f.path]).replace(',', '.'));
+      const raw = String(values[f.path] ?? '').trim();
+      const v = Number(raw.replace(',', '.'));
+      if (raw === '' || !Number.isFinite(v)) {
+        notify('error', t('admin.invalidNumber'));
+        return;
+      }
+      // Отправляем только изменённые значения — сохранение без изменений не создаёт новую версию модели.
+      if (data && v === getPath(data.config, f.path)) continue;
       const [a, b] = f.path.split('.');
       if (b) body[a!] = { ...((body[a!] as object) ?? {}), [b]: v };
       else body[a!] = v;
+    }
+    if (Object.keys(body).length === 0) {
+      notify('info', t('admin.model.noChanges'));
+      return;
     }
     if (await run(() => api.put('/api/admin/risk-config', body), t('admin.model.saved'))) reload();
   };

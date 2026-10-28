@@ -32,6 +32,17 @@ describe('вход', () => {
   });
 });
 
+describe('за обратным прокси', () => {
+  it('подделанное начало X-Forwarded-For не обходит ограничение: IP — адрес, который добавил прокси', async () => {
+    const app = await buildApp({ db: testDb(), sessionSecret: 'x'.repeat(40), sessionTtlHours: 1, trustProxy: true });
+    const attempt = (forged: string) =>
+      app.inject({ method: 'POST', url: '/api/auth/login', headers: { 'x-forwarded-for': `${forged}, 203.0.113.7` }, payload: { username: 'admin', password: 'wrong-password' } });
+    for (let i = 0; i < 10; i += 1) expect((await attempt(`10.0.0.${i}`)).statusCode).toBe(401);
+    expect((await attempt('10.0.0.99')).statusCode).toBe(429);
+    await app.close();
+  });
+});
+
 describe('проверка настроек публичного размещения', () => {
   it('демо-пароли, короткие пароли и пустой секрет запрещены', () => {
     expect(publicDeploymentProblems({ SESSION_SECRET: 'replace-me', SEED_ADMIN_PASSWORD: 'qorgan-admin-demo' })).toHaveLength(2);

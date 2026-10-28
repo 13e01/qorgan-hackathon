@@ -8,7 +8,7 @@ import { Admin } from './pages/Admin';
 import { Alerts } from './pages/Alerts';
 import { Analytics } from './pages/Analytics';
 import { Dashboard } from './pages/Dashboard';
-import { Outlook } from './pages/Outlook';
+import { Outlook, OutlookProvider } from './pages/Outlook';
 import { Simulator } from './pages/Simulator';
 import { Stations } from './pages/Stations';
 import { useStore } from './state/store';
@@ -48,6 +48,7 @@ export function App() {
   const closeMenu = useCallback(() => setMenuOpen(false), []);
 
   return (
+    <OutlookProvider>
     <div className={`app${collapsed ? ' is-collapsed' : ''}${menuOpen ? ' menu-open' : ''}`}>
       <Sidebar route={route} collapsed={collapsed} onToggle={toggle} mobileOpen={menuOpen} onCloseMobile={closeMenu} />
       <div className="scrim" onClick={closeMenu} aria-hidden="true" />
@@ -72,5 +73,6 @@ export function App() {
       <LoginDialog />
       <Notices />
     </div>
+    </OutlookProvider>
   );
 }

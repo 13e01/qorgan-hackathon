@@ -629,6 +629,10 @@ export const ru = {
   'alerts.emptyAttention': 'Все предупреждения обработаны',
 
   'error.TOO_MANY_ATTEMPTS': 'Слишком много неудачных попыток входа. Подождите 10 минут.',
+
+  'alert.stationDisabled': 'станция отключена администратором',
+  'admin.invalidNumber': 'Проверьте числа: в поле должно быть число (дробная часть — через точку или запятую).',
+  'admin.model.noChanges': 'Изменений нет — версия модели не изменена',
 } as const;
 
 export type MessageKey = keyof typeof ru;
