@@ -1,0 +1,41 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "qorgan-dev",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "cd /d D:\\QASH\\resources\\HackTons\\QORGAN\\.claude\\worktrees\\qorgan-hackathon-phase-0-b7182f && npm run dev"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "qorgan-prod",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "cd /d D:\\QASH\\resources\\HackTons\\QORGAN\\.claude\\worktrees\\qorgan-hackathon-phase-0-b7182f && npm run build && npm start"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "genesis-dev",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "cd /d D:\\QASH\\resources\\HackTons\\QORGAN\\.claude\\worktrees\\genesis && npm run dev"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "genesis-prod",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "cd /d D:\\QASH\\resources\\HackTons\\QORGAN\\.claude\\worktrees\\genesis && npm run build && npm start"
+      ],
+      "port": 3000
+    }
+  ]
+}
