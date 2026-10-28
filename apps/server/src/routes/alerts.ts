@@ -17,6 +17,8 @@ const listQuery = z
     runId: z.coerce.number().int().positive().optional(),
     status: z.enum(['NEW', 'VIEWED', 'RESOLVED']).optional(),
     active: z.enum(['true', 'false']).optional(),
+    /** true — требуют внимания оператора: ещё не обработаны (NEW/VIEWED), независимо от того, действует ли условие. */
+    unhandled: z.enum(['true']).optional(),
     station: z.string().min(1).max(32).optional(),
     limit: z.coerce.number().int().min(1).max(500).default(100),
   })
@@ -32,7 +34,7 @@ export function alertRoutes(db: Db, now: () => Date, onChanged: () => void) {
     app.get('/api/alerts', async (request) => {
       const q = parse(listQuery, request.query);
       const guest = !request.user;
-      if (guest && (q.runId !== undefined || q.status !== undefined || q.active === 'false')) {
+      if (guest && (q.runId !== undefined || q.status !== undefined || q.active === 'false' || q.unhandled !== undefined)) {
         throw new AppError(401, 'UNAUTHORIZED', 'Полный журнал предупреждений доступен после входа');
       }
       if (q.runId !== undefined && !runExists(db, q.runId)) throw new AppError(404, 'RUN_NOT_FOUND', `Прогон не найден: ${q.runId}`);
@@ -43,13 +45,13 @@ export function alertRoutes(db: Db, now: () => Date, onChanged: () => void) {
       const rows = db
         .prepare(
           `${SELECT} WHERE a.run_id = ? AND (? IS NULL OR a.status = ?) AND (? IS NULL OR a.is_active = ?)
-             AND (? IS NULL OR s.code = ? COLLATE NOCASE)
+             AND (? IS NULL OR s.code = ? COLLATE NOCASE) AND (? IS NULL OR a.status <> 'RESOLVED')
            ORDER BY a.opened_tick DESC, a.id DESC LIMIT ?`,
         )
         .all(
           runId, q.status ?? null, q.status ?? null,
           active === undefined ? null : 1, active === undefined ? null : active === 'true' ? 1 : 0,
-          q.station ?? null, q.station ?? null, q.limit,
+          q.station ?? null, q.station ?? null, q.unhandled ?? null, q.limit,
         );
       return { runId, items: rows.map(toAlert) };
     });

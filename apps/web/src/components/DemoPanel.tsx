@@ -8,6 +8,7 @@ import { DEMO_STAGES } from '../lib/demo';
 import { levelView } from '../lib/level';
 import { useDemo } from '../state/demo';
 import { useStore } from '../state/store';
+import { OutlookStrip } from './OutlookStrip';
 import { SimProgress } from './SimControls';
 import { Icon } from './ui';
 
@@ -125,6 +126,8 @@ export function DemoPanel() {
             </ul>
           )}
           {demo.stage.stage === 'explain' && <p className="demo-summary">{t('demo.summary', { danger, warning, total: withData.length })}</p>}
+          {/* С третьего шага — запас времени по прогнозу по реке: главное отличие QORGAN от простого порога. */}
+          {(demo.stage.stage === 'risk' || demo.stage.stage === 'wave' || demo.stage.stage === 'explain') && <OutlookStrip />}
           {finished && <p className="callout ok">{t('demo.finished')}</p>}
           {state === 'PAUSED' && <p className="callout info">{t('demo.paused')}</p>}
         </div>

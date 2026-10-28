@@ -623,6 +623,10 @@ export const ru = {
   'outlook.strip.label': 'Прогноз по реке',
   'outlook.strip.next': '{station}: опасный уровень {when}',
   'outlook.strip.none': 'Превышения опасного уровня в ближайшие {h} ч не ожидается',
+
+  'alerts.scope.attention': 'Требуют внимания',
+  'alerts.scope.attentionHint': 'Ещё не обработаны оператором — даже если условие уже снято',
+  'alerts.emptyAttention': 'Все предупреждения обработаны',
 } as const;
 
 export type MessageKey = keyof typeof ru;

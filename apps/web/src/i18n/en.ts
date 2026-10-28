@@ -624,4 +624,8 @@ export const en: Record<MessageKey, string> = {
   'outlook.strip.label': 'River outlook',
   'outlook.strip.next': '{station}: danger level {when}',
   'outlook.strip.none': 'No danger-level exceedance expected within {h} h',
+
+  'alerts.scope.attention': 'Need attention',
+  'alerts.scope.attentionHint': 'Not yet handled by an operator — even if the condition has cleared',
+  'alerts.emptyAttention': 'All alerts have been handled',
 };

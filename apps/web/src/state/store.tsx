@@ -174,6 +174,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (connection === 'open' && prevConnection.current === 'closed') {
       void loadStations();
+      // Сессия хранится на сервере и переживает его перезапуск; если проверка входа не прошла из-за обрыва — повторяем.
+      api
+        .get<{ user: PublicUser | null }>('/api/auth/me')
+        .then((r) => setUser(r.user))
+        .catch(() => undefined);
       dispatch({ type: 'invalidate' });
     }
     prevConnection.current = connection;

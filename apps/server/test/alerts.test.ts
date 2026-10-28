@@ -160,6 +160,17 @@ describe('журнал и отметки оператора', () => {
     expect((await s.get(`/api/alerts?runId=${runId}`)).body.items).toHaveLength(rows.length);
   });
 
+  it('«требуют внимания»: необработанные остаются в списке и после снятия условия; обработанные — уходят', async () => {
+    const { s, runId, alert } = await withAlert();
+    await s.post(`/api/alerts/${alert.id}/resolve`, { comment: 'ok' });
+    await s.post('/api/simulation/stop');
+    const attention = (await s.get(`/api/alerts?runId=${runId}&unhandled=true`)).body.items;
+    expect(attention.length).toBeGreaterThan(0);
+    expect(attention.every((a: { status: string; isActive: boolean }) => a.status !== 'RESOLVED' && !a.isActive)).toBe(true);
+    expect(attention.find((a: { id: number }) => a.id === alert.id)).toBeUndefined();
+    expect((await s.get('/api/alerts?unhandled=true', '')).status).toBe(401);
+  });
+
   it('снимок WebSocket содержит активные предупреждения и число необработанных', async () => {
     const { s, runId } = await withAlert();
     const snap = buildSnapshot(s.db, s.app.simulation, new Date().toISOString());

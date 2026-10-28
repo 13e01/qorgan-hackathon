@@ -625,4 +625,8 @@ export const kk: Record<MessageKey, string> = {
   'outlook.strip.label': 'Өзен бойынша болжам',
   'outlook.strip.next': '{station}: қауіпті деңгей {when}',
   'outlook.strip.none': 'Алдағы {h} сағатта қауіпті деңгейден асу күтілмейді',
+
+  'alerts.scope.attention': 'Назар аударуды қажет етеді',
+  'alerts.scope.attentionHint': 'Оператор әлі өңдемеген — шарт алынса да',
+  'alerts.emptyAttention': 'Барлық ескертулер өңделді',
 };

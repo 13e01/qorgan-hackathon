@@ -40,17 +40,18 @@ export function useAlertList(query: string, enabled: boolean): { items: AlertIte
   return { items, reload: () => setNonce((n) => n + 1), error };
 }
 
-type Scope = 'active' | 'all';
+type Scope = 'attention' | 'active' | 'all';
 
 export function Alerts() {
   const { t } = useI18n();
   const { user, live, stations, setLoginOpen } = useStore();
-  const [scope, setScope] = useState<Scope>('active');
+  const [scope, setScope] = useState<Scope>('attention');
   const [status, setStatus] = useState<AlertStatus | ''>('');
   const [station, setStation] = useState('');
   const query = useMemo(() => {
     const p = new URLSearchParams({ limit: '200' });
     if (scope === 'active') p.set('active', 'true');
+    if (scope === 'attention') p.set('unhandled', 'true');
     if (status) p.set('status', status);
     if (station) p.set('station', station);
     return p.toString();
@@ -86,6 +87,7 @@ export function Alerts() {
               value={scope}
               onChange={setScope}
               options={[
+                { value: 'attention', content: t('alerts.scope.attention'), title: t('alerts.scope.attentionHint') },
                 { value: 'active', content: t('alerts.scope.active'), title: t('alerts.scope.active') },
                 { value: 'all', content: t('alerts.scope.all'), title: t('alerts.scope.all') },
               ]}
@@ -128,7 +130,7 @@ export function Alerts() {
         ) : items.length === 0 ? (
           <div className="empty">
             <p>
-              <b>{scope === 'active' || !user ? t('alerts.emptyActive') : t('alerts.empty')}</b>
+              <b>{!user || scope === 'active' ? t('alerts.emptyActive') : scope === 'attention' ? t('alerts.emptyAttention') : t('alerts.empty')}</b>
             </p>
             <p className="muted">{t('alerts.emptyHint')}</p>
           </div>
