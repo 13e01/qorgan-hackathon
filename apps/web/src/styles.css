@@ -2610,6 +2610,132 @@ button.rb-row:hover {
   }
 }
 
+
+/* ---------- Внешние датчики (MQTT) ---------- */
+.external-sensors h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.external-sensors > .btn {
+  margin: var(--sp-2) 0 var(--sp-3);
+}
+
+.source-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  padding: 10px var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  margin: var(--sp-3) 0;
+  font-size: var(--fs-sm);
+}
+
+.source-line .eyebrow {
+  margin-right: 4px;
+}
+
+.source-line.src-EXTERNAL_SENSOR {
+  background: var(--accent-soft);
+}
+
+.source-tag {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: var(--r-sm);
+  background: var(--demo-bg);
+  color: var(--demo);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.device-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.device-row {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.device-row.link-ONLINE {
+  border-left-color: var(--risk-low-fill);
+}
+
+.device-row.link-STALE {
+  border-left-color: var(--risk-medium-fill);
+}
+
+.device-row.link-OFFLINE {
+  border-left-color: var(--risk-high-fill);
+}
+
+.device-main {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+
+.device-id {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 160px;
+}
+
+.device-id .faint {
+  font-size: var(--fs-xs);
+}
+
+.device-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--sp-2) var(--sp-4);
+  margin: var(--sp-3) 0 0;
+}
+
+.device-facts dt {
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+}
+
+.device-facts dd {
+  margin: 2px 0 0;
+  font-size: var(--fs-sm);
+}
+
+.external-sensors.compact .device-facts {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.chip.mqtt-connected {
+  background: var(--risk-low-bg);
+  color: var(--risk-low);
+  border-color: transparent;
+}
+
+.chip.mqtt-connecting {
+  background: var(--risk-medium-bg);
+  color: var(--risk-medium);
+  border-color: transparent;
+}
+
+.chip.mqtt-offline {
+  background: var(--risk-high-bg);
+  color: var(--risk-high);
+  border-color: transparent;
+}
+
 /* ---------- Адаптивность ---------- */
 @media (max-width: 1439px) {
   .sim-clock .faint {

@@ -4,6 +4,8 @@
 import { describeSituation, type RiskSituation } from '@qorgan/shared';
 import { alertSummary, type AlertRow } from '../alerts/repository';
 import type { Db } from '../db/connection';
+import { deviceSummaries, type DeviceSummary } from '../mqtt/devices';
+import type { MqttLinkState } from '../mqtt/subscriber';
 import { createEvaluator, type EvaluationContext } from '../risk/service';
 import type { SimulationRunner, SimulationState } from '../simulation/runner';
 
@@ -40,9 +42,12 @@ export interface Snapshot {
   stations: StationSnapshot[];
   /** Активные (опубликованные) предупреждения текущего прогона и число необработанных. */
   alerts: { runId: number | null; active: AlertRow[]; unhandled: number };
+  /** Внешние датчики (без токенов) и состояние связи QORGAN с MQTT-брокером. */
+  devices: DeviceSummary[];
+  mqtt: MqttLinkState;
 }
 
-export function buildSnapshot(db: Db, runner: SimulationRunner, now: string): Snapshot {
+export function buildSnapshot(db: Db, runner: SimulationRunner, now: string, mqtt: MqttLinkState = 'disabled'): Snapshot {
   const simulation = runner.state();
   const evaluator = createEvaluator(db, { computedAt: now });
   const latest = db.prepare(
@@ -91,5 +96,5 @@ export function buildSnapshot(db: Db, runner: SimulationRunner, now: string): Sn
       },
     };
   });
-  return { simulation, context: evaluator.context(), stations, alerts: alertSummary(db) };
+  return { simulation, context: evaluator.context(), stations, alerts: alertSummary(db), devices: deviceSummaries(db, new Date(now)), mqtt };
 }

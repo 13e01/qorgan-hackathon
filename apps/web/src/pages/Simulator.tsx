@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import type { ScenarioId } from '../api/shared';
 import type { RunInfo } from '../api/types';
+import { ExternalSensors } from '../components/ExternalSensors';
 import { InterventionForm } from '../components/InterventionForm';
 import { SimulationPanel } from '../components/SimulationPanel';
 import { StationList } from '../components/StationList';
@@ -44,7 +45,7 @@ function RunHistory() {
             {runs.map((r) => (
               <tr key={r.id}>
                 <td className="num">#{r.id}</td>
-                <td>{r.scenarioId === 'TEST_FIXTURE' ? 'TEST_FIXTURE' : t(`sim.scenario.${r.scenarioId as ScenarioId}`)}</td>
+                <td>{r.scenarioId === 'TEST_FIXTURE' ? 'TEST_FIXTURE' : r.scenarioId === 'EXTERNAL_SENSORS' ? t('sim.scenario.EXTERNAL_SENSORS') : t(`sim.scenario.${r.scenarioId as ScenarioId}`)}</td>
                 <td>{t(`sim.state.${r.status}`)}</td>
                 <td className="num">
                   {r.currentTick === null ? '—' : r.currentTick + 1} / {r.totalTicks ?? '—'}
@@ -68,6 +69,7 @@ export function Simulator() {
         <SimulationPanel />
         <StationList />
       </div>
+      <ExternalSensors />
       {canControl && (
         <Disclosure className="card" title={t('interv.title')} hint={t('sim.manualHint')}>
           <InterventionForm />

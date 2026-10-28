@@ -13,6 +13,8 @@ const sha256 = (s: string) => createHash('sha256').update(s).digest();
 
 const bodySchema = z.object({
   runId: z.number().int().positive().optional(),
+  /** Только для MQTT-адаптера: внешнее устройство, от имени которого передаются показания. */
+  deviceId: z.string().min(1).max(64).optional(),
   tick: z.number().int().min(0).optional(),
   records: z
     .array(
@@ -29,8 +31,9 @@ const bodySchema = z.object({
     .max(500),
 });
 
-export function telemetryRoutes(db: Db, simulatorToken: string, now: () => Date, onIngested: () => void) {
+export function telemetryRoutes(db: Db, simulatorToken: string, now: () => Date, onIngested: () => void, mqttAdapterToken?: string) {
   const simulatorDigest = sha256(simulatorToken);
+  const adapterDigest = mqttAdapterToken ? sha256(mqttAdapterToken) : null;
   return async (app: FastifyInstance) => {
     app.post('/api/telemetry', async (request) => {
       const token = request.headers['x-device-token'];
@@ -38,8 +41,18 @@ export function telemetryRoutes(db: Db, simulatorToken: string, now: () => Date,
         throw new AppError(401, 'BAD_DEVICE_TOKEN', 'Нужен заголовок X-Device-Token');
       }
       let sender: Sender | null = null;
-      if (timingSafeEqual(sha256(token), simulatorDigest)) sender = { kind: 'simulator' };
-      else {
+      const digest = sha256(token);
+      if (timingSafeEqual(digest, simulatorDigest)) sender = { kind: 'simulator' };
+      else if (adapterDigest && timingSafeEqual(digest, adapterDigest)) {
+        // MQTT-адаптер (в том же процессе, токен только в памяти) передаёт показания от имени зарегистрированного устройства.
+        const deviceId = (request.body as { deviceId?: unknown } | null)?.deviceId;
+        const device =
+          typeof deviceId === 'string'
+            ? db.prepare("SELECT s.id, s.code FROM devices d JOIN stations s ON s.id = d.station_id WHERE d.device_id = ? AND d.status = 'active'").get(deviceId)
+            : undefined;
+        if (!device) throw new AppError(403, 'UNKNOWN_DEVICE', 'Устройство не зарегистрировано или отключено');
+        sender = { kind: 'device', stationId: Number(device.id), stationCode: String(device.code) };
+      } else {
         const station = db.prepare('SELECT id, code FROM stations WHERE device_token_hash = ?').get(sha256(token).toString('hex'));
         if (station) sender = { kind: 'device', stationId: Number(station.id), stationCode: String(station.code) };
       }
@@ -59,6 +72,9 @@ export function telemetryRoutes(db: Db, simulatorToken: string, now: () => Date,
       }
 
       const body = parse(bodySchema, request.body);
+      if (body.deviceId !== undefined && !(adapterDigest && timingSafeEqual(digest, adapterDigest))) {
+        throw new AppError(400, 'VALIDATION', 'Поле deviceId передаёт только MQTT-адаптер');
+      }
       if (sender.kind === 'device' && body.records.some((r) => r.source !== undefined)) {
         throw new AppError(400, 'VALIDATION', 'Поле source задаёт только симулятор');
       }

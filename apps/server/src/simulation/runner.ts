@@ -10,6 +10,8 @@
 import { closeRunAlerts } from '../alerts/engine';
 import {
   createGenerator,
+  EXTERNAL_SCENARIO_ID,
+  type DataSource,
   PARAMETERS,
   resolveScenario,
   SCENARIOS,
@@ -21,8 +23,10 @@ import { transaction, type Db } from '../db/connection';
 import { AppError } from '../errors';
 import {
   activeRun,
+  dataSourceOf,
   getRun,
   insertRun,
+  isExternalRun,
   LIVE_STATUSES,
   listInterventions,
   setActiveRun,
@@ -93,6 +97,8 @@ export interface InterventionInput {
 export interface SimulationState {
   /** IDLE — нет активного прогона; иначе статус активного прогона. */
   state: 'IDLE' | RunStatus;
+  /** Источник данных активного прогона: встроенный симулятор или внешние датчики (MQTT). */
+  dataSource: DataSource | null;
   run: (RunInfo & {
     virtualTime: string | null;
     nextVirtualTime: string | null;
@@ -157,10 +163,11 @@ export class SimulationRunner {
   state(): SimulationState {
     const run = activeRun(this.deps.db);
     const realTime = this.nowIso();
-    if (!run) return { state: 'IDLE', run: null, realTime };
+    if (!run) return { state: 'IDLE', dataSource: null, run: null, realTime };
     const total = run.totalTicks;
     return {
       state: run.status,
+      dataSource: dataSourceOf(run),
       run: {
         ...run,
         virtualTime: run.currentTick === null ? null : virtualTime(run, run.currentTick),
@@ -176,6 +183,50 @@ export class SimulationRunner {
     const run = activeRun(this.deps.db);
     if (!run || !LIVE_STATUSES.includes(run.status)) throw new AppError(409, 'NO_ACTIVE_RUN', 'Нет активного прогона');
     return run;
+  }
+
+  /** Команды встроенного симулятора (пауза, шаг, скорость, вмешательства) к прогону внешних датчиков неприменимы. */
+  private requireSimulated(): RunInfo {
+    const run = this.requireLive();
+    if (isExternalRun(run)) throw new AppError(409, 'EXTERNAL_RUN', 'Идёт приём данных от внешних датчиков — команды симулятора недоступны; остановите режим датчиков');
+    return run;
+  }
+
+  /**
+   * Режим «Внешние датчики»: прогон без таймера и без генератора — данные дают только устройства через MQTT.
+   * hourMs — сколько реальных миллисекунд считается одним часом модели (по умолчанию = интервал датчика).
+   */
+  startExternal(hourMs: number, userId: number | null): Promise<SimulationState> {
+    return this.serialize(() => {
+      const db = this.deps.db;
+      const current = activeRun(db);
+      if (current && LIVE_STATUSES.includes(current.status)) {
+        throw new AppError(409, 'ACTIVE_RUN_EXISTS', `Прогон ${current.id} ещё активен (${current.status}) — остановите или сбросьте его`);
+      }
+      const total = Number(db.prepare("SELECT COUNT(*) AS n FROM sim_runs WHERE scenario_id <> 'TEST_FIXTURE'").get()?.n ?? 0);
+      if (total >= MAX_RUNS) throw new AppError(409, 'RUN_LIMIT', `Сохранено ${total} прогонов — удалите старые (администратор)`);
+      const now = this.deps.now();
+      transaction(db, () => {
+        const runId = insertRun(
+          db,
+          {
+            scenarioId: EXTERNAL_SCENARIO_ID,
+            seed: 0,
+            params: {},
+            tickMs: hourMs,
+            totalTicks: null,
+            simStart: new Date(Math.floor(now.getTime() / 3_600_000) * 3_600_000).toISOString(),
+            userId,
+          },
+          now.toISOString(),
+        );
+        updateRun(db, runId, { status: 'RUNNING' });
+        setActiveRun(db, runId, now.toISOString());
+        this.audit(userId, 'SIM_EXTERNAL_START', runId, { hourMs });
+      });
+      this.changed();
+      return this.state();
+    });
   }
 
   private createSync(input: CreateRunInput, userId: number | null): RunInfo {
@@ -224,6 +275,9 @@ export class SimulationRunner {
   start(input: CreateRunInput | undefined, userId: number | null): Promise<SimulationState> {
     return this.serialize(() => {
       let run = activeRun(this.deps.db);
+      if (run && isExternalRun(run) && LIVE_STATUSES.includes(run.status)) {
+        throw new AppError(409, 'EXTERNAL_RUN', 'Идёт приём данных от внешних датчиков — сначала остановите режим датчиков');
+      }
       if (run?.status === 'RUNNING') throw new AppError(409, 'ALREADY_RUNNING', 'Симуляция уже идёт');
       if (run?.status === 'PAUSED') throw new AppError(409, 'RUN_PAUSED', 'Прогон на паузе — используйте «Продолжить»');
       if (run?.status === 'CREATED') {
@@ -242,7 +296,7 @@ export class SimulationRunner {
 
   pause(userId: number | null): Promise<SimulationState> {
     return this.serialize(() => {
-      const run = this.requireLive();
+      const run = this.requireSimulated();
       if (run.status !== 'RUNNING') throw new AppError(409, 'NOT_RUNNING', 'Симуляция не идёт');
       this.clearTimer();
       updateRun(this.deps.db, run.id, { status: 'PAUSED' });
@@ -254,7 +308,7 @@ export class SimulationRunner {
 
   resume(userId: number | null): Promise<SimulationState> {
     return this.serialize(() => {
-      const run = this.requireLive();
+      const run = this.requireSimulated();
       if (run.status !== 'PAUSED') throw new AppError(409, 'NOT_PAUSED', 'Прогон не на паузе');
       updateRun(this.deps.db, run.id, { status: 'RUNNING', lastError: null });
       this.audit(userId, 'SIM_RESUME', run.id);
@@ -267,7 +321,7 @@ export class SimulationRunner {
   /** Один тик вручную (на паузе или до старта). */
   step(userId: number | null): Promise<SimulationState> {
     return this.serialize(async () => {
-      const run = this.requireLive();
+      const run = this.requireSimulated();
       if (run.status === 'RUNNING') throw new AppError(409, 'ALREADY_RUNNING', 'Во время хода симуляции шаг недоступен — поставьте паузу');
       if (run.status === 'CREATED') updateRun(this.deps.db, run.id, { status: 'PAUSED' });
       this.audit(userId, 'SIM_STEP', run.id);
@@ -311,7 +365,7 @@ export class SimulationRunner {
 
   setSpeed(tickMs: number, userId: number | null): Promise<SimulationState> {
     return this.serialize(() => {
-      const run = this.requireLive();
+      const run = this.requireSimulated();
       updateRun(this.deps.db, run.id, { tickMs });
       this.audit(userId, 'SIM_SPEED', run.id, { tickMs });
       if (run.status === 'RUNNING') this.schedule(run.id, tickMs);
@@ -324,7 +378,7 @@ export class SimulationRunner {
   addIntervention(input: InterventionInput, userId: number | null): Promise<{ id: number; effectiveTick: number; state: SimulationState }> {
     return this.serialize(() => {
       const db = this.deps.db;
-      const run = this.requireLive();
+      const run = this.requireSimulated();
       const effectiveTick = (run.currentTick ?? -1) + 1;
       if (run.totalTicks !== null && effectiveTick >= run.totalTicks) throw new AppError(409, 'RUN_FINISHING', 'Прогон завершается — вмешательство некуда применить');
       const station = db.prepare("SELECT id, status FROM stations WHERE code = ? COLLATE NOCASE").get(input.stationCode);
@@ -379,6 +433,7 @@ export class SimulationRunner {
     const run = getRun(db, runId);
     const active = activeRun(db);
     if (!run || active?.id !== runId) return;
+    if (isExternalRun(run)) return;
     if (mode === 'auto' && run.status !== 'RUNNING') return;
     const next = (run.currentTick ?? -1) + 1;
     if (run.totalTicks !== null && next >= run.totalTicks) {
@@ -432,7 +487,8 @@ export class SimulationRunner {
   /** После перезапуска сервера: прогоны, которые «шли», ставятся на паузу (таймеров в памяти уже нет). */
   recover(): number[] {
     const db = this.deps.db;
-    const ids = db.prepare("SELECT id FROM sim_runs WHERE status = 'RUNNING'").all().map((r) => Number(r.id));
+    // Прогон внешних датчиков таймера не имеет — после перезапуска он продолжает принимать данные.
+    const ids = db.prepare("SELECT id FROM sim_runs WHERE status = 'RUNNING' AND scenario_id <> ?").all(EXTERNAL_SCENARIO_ID).map((r) => Number(r.id));
     for (const id of ids) {
       updateRun(db, id, { status: 'PAUSED', lastError: 'SERVER_RESTART' });
       db.prepare("INSERT INTO device_log (level, code, details_json, created_at) VALUES ('info', 'SIM_RECOVERED_PAUSED', ?, ?)").run(

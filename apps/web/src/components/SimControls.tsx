@@ -35,6 +35,15 @@ export function SimControls({ params = DEFAULT_START, startPrimary = true, disab
 
   const post = (url: string, body?: unknown) => () => void simCommand(() => api.post(url, body));
   const start = post('/api/simulation/start', { ...params });
+  // Режим внешних датчиков: пауза и шаг неприменимы (время двигают сами показания) — только остановка приёма.
+  if (live.snapshot?.simulation.dataSource === 'EXTERNAL_SENSOR' && state === 'RUNNING') {
+    return (
+      <button className="btn lg danger" disabled={simBusy} onClick={post('/api/simulation/stop')}>
+        <Icon name="stop" />
+        {t('ext.stop')}
+      </button>
+    );
+  }
 
   return (
     <>
@@ -80,6 +89,20 @@ export function SimProgress() {
   const run = sim?.run;
   if (!sim || !run) return null;
   const pct = run.totalTicks ? Math.round((((run.currentTick ?? -1) + 1) / run.totalTicks) * 100) : 0;
+  if (sim.dataSource === 'EXTERNAL_SENSOR') {
+    return (
+      <div className="sim-progress">
+        <div className="sim-progress-row">
+          <span>
+            <b>{t('sim.scenario.EXTERNAL_SENSORS')}</b> <span className="faint">· {t(`sim.state.${sim.state}`)}</span>
+          </span>
+          <span className="num faint">
+            {run.virtualTime ? dateTime(run.virtualTime, lang) : t('ext.waiting')} · {t('ext.hours', { n: run.currentTick === null ? 0 : run.currentTick + 1 })}
+          </span>
+        </div>
+      </div>
+    );
+  }
   const scenario = run.scenarioId === 'TEST_FIXTURE' ? 'TEST_FIXTURE' : t(`sim.scenario.${run.scenarioId as ScenarioId}`);
   return (
     <div className="sim-progress">

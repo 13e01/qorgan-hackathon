@@ -8,6 +8,8 @@ import { registerAuth } from './auth/plugin';
 import type { Db } from './db/connection';
 import { registerErrorHandlers } from './errors';
 import { RealtimeHub } from './realtime/hub';
+import { createSensorAdapter } from './mqtt/adapter';
+import { startMqttSubscriber, type MqttLinkState } from './mqtt/subscriber';
 import { buildSnapshot } from './realtime/snapshot';
 import { adminRoutes } from './routes/admin';
 import { alertRoutes } from './routes/alerts';
@@ -37,12 +39,15 @@ export interface AppOptions {
   secureCookies?: boolean;
   /** Сервер стоит за обратным прокси: брать IP клиента из X-Forwarded-For. */
   trustProxy?: boolean;
+  /** Подписчик MQTT для внешних датчиков; не задан — MQTT выключен (тесты, сервер без брокера). */
+  mqtt?: { url: string; username: string; password: string } | null;
 }
 
 declare module 'fastify' {
   interface FastifyInstance {
     simulation: SimulationRunner;
     realtime: RealtimeHub;
+    sensorAdapter: ReturnType<typeof createSensorAdapter>;
   }
 }
 
@@ -63,8 +68,10 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await registerAuth(app, db, options.sessionSecret);
   await app.register(websocket);
 
-  // Токен встроенного симулятора: случайный на каждый запуск, только в памяти процесса.
+  // Токены встроенного симулятора и MQTT-адаптера: случайные на каждый запуск, только в памяти процесса.
   const simulatorToken = randomBytes(32).toString('hex');
+  const mqttAdapterToken = randomBytes(32).toString('hex');
+  let mqttState: MqttLinkState = 'disabled';
   let hub: RealtimeHub;
 
   const runner = new SimulationRunner({
@@ -87,11 +94,48 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     logError: (message, details) => app.log.error({ details }, message),
   });
   runner.recover();
-  hub = new RealtimeHub(() => buildSnapshot(db, runner, now().toISOString()));
+  hub = new RealtimeHub(() => buildSnapshot(db, runner, now().toISOString(), mqttState));
+
+  // Изменения состояния устройств (отклонённые сообщения, online/offline) — не чаще двух снимков в секунду.
+  let deviceTimer: ReturnType<typeof setTimeout> | null = null;
+  const deviceChanged = () => {
+    if (deviceTimer) return;
+    deviceTimer = setTimeout(() => {
+      deviceTimer = null;
+      hub.broadcastSnapshot({ type: 'device' });
+    }, 500);
+  };
+  // MQTT-адаптер передаёт показания датчиков через тот же POST /api/telemetry (в процессе, без сети).
+  const sensorAdapter = createSensorAdapter({
+    db,
+    now,
+    deliver: async (body) => {
+      const res = await app.inject({ method: 'POST', url: '/api/telemetry', headers: { 'x-device-token': mqttAdapterToken }, payload: body as object });
+      return { status: res.statusCode, body: res.json() };
+    },
+    onDeviceChange: deviceChanged,
+  });
+  app.decorate('sensorAdapter', sensorAdapter);
 
   app.decorate('simulation', runner);
   app.decorate('realtime', hub);
+  const subscriber = options.mqtt
+    ? startMqttSubscriber({
+        ...options.mqtt,
+        handle: (topic, payload, packet) => sensorAdapter.handle(topic, payload, packet),
+        onStateChange: (state) => {
+          mqttState = state;
+          app.log.info(`MQTT: ${state}`);
+          hub.broadcastSnapshot({ type: 'mqtt' });
+        },
+        log: (message, details) => app.log.warn({ details }, message),
+      })
+    : null;
+  if (subscriber) mqttState = subscriber.state();
+
   app.addHook('onClose', async () => {
+    await subscriber?.close();
+    if (deviceTimer) clearTimeout(deviceTimer);
     runner.close();
     await runner.idle();
     hub.closeAll();
@@ -105,7 +149,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(alertRoutes(db, now, () => hub.broadcastSnapshot({ type: 'alert' })));
   await app.register(adminRoutes(db, now, () => hub.broadcastSnapshot({ type: 'admin' }), { backupDir: options.backupDir }));
   await app.register(outlookRoutes(db, now));
-  await app.register(telemetryRoutes(db, simulatorToken, now, () => hub.broadcastSnapshot({ type: 'telemetry' })));
+  await app.register(telemetryRoutes(db, simulatorToken, now, () => hub.broadcastSnapshot({ type: 'telemetry' }), mqttAdapterToken));
   await app.register(async (scope) => {
     scope.get('/ws', { websocket: true }, (socket) => hub.add(socket));
   });

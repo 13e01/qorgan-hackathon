@@ -239,4 +239,34 @@ ALTER TABLE risk_assessments ADD COLUMN assessment_json TEXT;
 CREATE INDEX measurements_run_tick ON measurements(run_id, tick);
 `,
   },
+  {
+    // Внешние датчики (Python-датчик через MQTT). Только добавление: устройство привязано к станции,
+    // в БД — только хеш его пароля; состояние связи и защита от повторов хранятся у устройства.
+    version: 3,
+    name: 'external_devices',
+    sql: `
+CREATE TABLE devices (
+  id               INTEGER PRIMARY KEY,
+  device_id        TEXT    NOT NULL UNIQUE,
+  name             TEXT    NOT NULL,
+  station_id       INTEGER NOT NULL REFERENCES stations(id),
+  token_hash       TEXT    NOT NULL,
+  status           TEXT    NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'disabled')),
+  mqtt_status      TEXT    CHECK (mqtt_status IS NULL OR mqtt_status IN ('online', 'offline')),
+  last_seen_at     TEXT,
+  last_boot_id     TEXT,
+  last_seq         INTEGER,
+  last_value       REAL,
+  last_unit        TEXT,
+  last_sensor_at   TEXT,
+  last_mode        TEXT,
+  last_result      TEXT,
+  accepted_count   INTEGER NOT NULL DEFAULT 0,
+  rejected_count   INTEGER NOT NULL DEFAULT 0,
+  created_at       TEXT    NOT NULL,
+  updated_at       TEXT    NOT NULL
+);
+CREATE INDEX devices_station ON devices(station_id);
+`,
+  },
 ];

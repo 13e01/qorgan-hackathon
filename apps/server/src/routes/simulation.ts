@@ -115,6 +115,12 @@ export function simulationRoutes(db: Db, runner: SimulationRunner, now: () => Da
     app.post('/api/simulation/stop', operator, async (request) => runner.stop(userId(request)));
     app.post('/api/simulation/reset', operator, async (request) => runner.reset(userId(request)));
 
+    // Режим «Внешние датчики»: данные дают только устройства через MQTT; hourMs — реальных мс в одном часе модели.
+    app.post('/api/simulation/external/start', operator, async (request) => {
+      const { hourMs } = parse(z.object({ hourMs: z.number().int().min(500).max(60_000).default(2000) }).strict(), request.body ?? {});
+      return runner.startExternal(hourMs, userId(request));
+    });
+
     app.patch('/api/simulation/speed', operator, async (request) => {
       const { tickMs: ms } = parse(z.object({ tickMs }).strict(), request.body);
       return runner.setSpeed(ms, userId(request));

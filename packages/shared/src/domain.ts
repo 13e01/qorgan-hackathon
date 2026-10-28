@@ -123,3 +123,10 @@ export const DEFAULT_RISK_CONFIG: RiskConfig = {
     mediumScore: 2,
   },
 };
+
+/** Источник данных активного прогона: встроенный симулятор или внешние датчики (MQTT). */
+export const DATA_SOURCES = ['INTERNAL_SIMULATION', 'EXTERNAL_SENSOR'] as const;
+export type DataSource = (typeof DATA_SOURCES)[number];
+
+/** Прогон «Внешние датчики»: данные дают только устройства, встроенный симулятор не работает. */
+export const EXTERNAL_SCENARIO_ID = 'EXTERNAL_SENSORS';

@@ -15,7 +15,7 @@ if (config.publicDeployment) {
 }
 const db = openDb(config.dbPath);
 const version = migrate(db);
-const summary = seed(db, config.seedUsers);
+const summary = seed(db, config.seedUsers, config.seedDevices);
 const userCount = Number(db.prepare('SELECT COUNT(*) AS n FROM users').get()?.n ?? 0);
 
 const app = await buildApp({
@@ -26,6 +26,7 @@ const app = await buildApp({
   webRoot: config.webRoot,
   backupDir: config.backupDir,
   secureCookies: config.publicDeployment,
+  mqtt: config.mqtt.enabled ? { url: config.mqtt.url, username: config.mqtt.username, password: config.mqtt.password } : null,
   trustProxy: config.trustProxy,
 });
 

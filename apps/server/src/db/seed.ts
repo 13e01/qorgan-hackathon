@@ -3,6 +3,7 @@
 // Координаты — точки на русле по OpenStreetMap (docs/ARCHITECTURE.md §4). Пороги — учебные.
 
 import { DEFAULT_RISK_CONFIG, PARAMETERS, type ParameterCode, type Role, type StationType } from '@qorgan/shared';
+import { createHash } from 'node:crypto';
 import { hashPassword } from '../auth/password';
 import { transaction, type Db } from './connection';
 
@@ -56,13 +57,21 @@ export interface SeedUser {
   role: Role;
 }
 
+/** Внешнее устройство (Python-датчик): пароль MQTT берётся из .env, в БД хранится только его SHA-256. */
+export interface SeedDevice {
+  deviceId: string;
+  name: string;
+  stationCode: string;
+  token: string;
+}
+
 export interface SeedSummary {
   parameters: number;
   stations: number;
   users: number;
 }
 
-export function seed(db: Db, users: readonly SeedUser[]): SeedSummary {
+export function seed(db: Db, users: readonly SeedUser[], devices: readonly SeedDevice[] = []): SeedSummary {
   const now = new Date().toISOString();
   const summary: SeedSummary = { parameters: 0, stations: 0, users: 0 };
 
@@ -105,6 +114,16 @@ export function seed(db: Db, users: readonly SeedUser[]): SeedSummary {
     );
     for (const u of users) {
       summary.users += Number(insertUser.run(u.username, hashPassword(u.password), u.role, now, now).changes);
+    }
+
+    // Устройство из .env: создаётся один раз; при смене пароля в .env обновляется только хеш.
+    const insertDevice = db.prepare(
+      `INSERT INTO devices (device_id, name, station_id, token_hash, created_at, updated_at)
+       SELECT ?, ?, id, ?, ?, ? FROM stations WHERE code = ?
+       ON CONFLICT(device_id) DO UPDATE SET token_hash = excluded.token_hash, updated_at = excluded.updated_at`,
+    );
+    for (const d of devices) {
+      insertDevice.run(d.deviceId, d.name, createHash('sha256').update(d.token).digest('hex'), now, now, d.stationCode);
     }
   });
 

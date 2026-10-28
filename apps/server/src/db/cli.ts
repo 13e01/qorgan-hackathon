@@ -17,7 +17,7 @@ if (command === 'reset') {
   }
   const db = openDb(config.dbPath);
   const version = migrate(db);
-  const summary = seed(db, config.seedUsers);
+  const summary = seed(db, config.seedUsers, config.seedDevices);
   db.close();
   console.log(`БД пересоздана: ${config.dbPath}`);
   console.log(`Схема v${version}; показателей: ${summary.parameters}, станций: ${summary.stations}, пользователей: ${summary.users}`);
@@ -34,7 +34,7 @@ if (command === 'reset') {
 } else if (command === 'fixture') {
   const db = openDb(config.dbPath);
   migrate(db);
-  seed(db, config.seedUsers);
+  seed(db, config.seedUsers, config.seedDevices);
   const runId = insertFixture(db);
   db.close();
   console.log(`Проверочные данные (TEST_FIXTURE, не симулятор) записаны в прогон #${runId}.`);

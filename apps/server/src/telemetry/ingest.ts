@@ -7,7 +7,10 @@ import { processAlerts, type AlertChange } from '../alerts/engine';
 import { transaction, type Db } from '../db/connection';
 import { AppError } from '../errors';
 import { createEvaluator, loadRiskConfig, type StationEvaluation } from '../risk/service';
-import { getRun, updateRun, virtualTime, type RunInfo } from '../simulation/repository';
+import { externalTickAt, getRun, isExternalRun, updateRun, virtualTime, type RunInfo } from '../simulation/repository';
+
+/** Предел часов модели в одном прогоне внешних датчиков (защита от переполнения БД: ≈ 11 ч при 2 с на час). */
+export const EXTERNAL_MAX_TICKS = 20_000;
 
 export interface TelemetryRecord {
   stationCode: string;
@@ -67,7 +70,7 @@ function persistAssessments(db: Db, runId: number, tick: number, evaluations: St
   }
 }
 
-function resolveRun(db: Db, sender: Sender, req: IngestRequest): { run: RunInfo; tick: number } {
+function resolveRun(db: Db, sender: Sender, req: IngestRequest, now: string): { run: RunInfo; tick: number } {
   if (sender.kind === 'simulator') {
     if (req.runId === undefined || req.tick === undefined) throw new AppError(400, 'VALIDATION', 'runId и tick обязательны для симулятора');
     const run = getRun(db, req.runId);
@@ -86,13 +89,22 @@ function resolveRun(db: Db, sender: Sender, req: IngestRequest): { run: RunInfo;
     throw new AppError(409, 'NO_ACTIVE_RUN', 'Нет активного прогона, к которому можно привязать измерения');
   }
   if (req.runId !== undefined && req.runId !== run.id) throw new AppError(409, 'RUN_MISMATCH', 'runId не совпадает с активным прогоном');
+  if (isExternalRun(run)) {
+    // Режим внешних датчиков: часы прогона двигают сами показания. Час модели вычисляет MQTT-адаптер по реальному
+    // времени показания; показание из будущего (дальше следующего часа по реальным часам сервера) не принимается.
+    if (req.tick === undefined) throw new AppError(400, 'VALIDATION', 'tick обязателен в режиме внешних датчиков');
+    if (req.tick > externalTickAt(run, Date.parse(now)) + 1) throw new AppError(409, 'TICK_IN_FUTURE', 'Показание из будущего');
+    if (req.tick > EXTERNAL_MAX_TICKS) throw new AppError(409, 'RUN_FULL', 'Прогон внешних датчиков слишком длинный — начните новый');
+    return { run, tick: req.tick };
+  }
   if (run.currentTick === null) throw new AppError(409, 'RUN_NOT_STARTED', 'Виртуальные часы прогона ещё не запущены');
   return { run, tick: run.currentTick };
 }
 
 export function ingest(db: Db, sender: Sender, req: IngestRequest, now: string): IngestResult {
   return transaction(db, () => {
-    const { run, tick } = resolveRun(db, sender, req);
+    const { run, tick } = resolveRun(db, sender, req, now);
+    const external = isExternalRun(run);
     const tickTime = virtualTime(run, tick);
     const rejected: IngestResult['rejected'] = [];
     let accepted = 0;
@@ -131,7 +143,8 @@ export function ingest(db: Db, sender: Sender, req: IngestRequest, now: string):
       if (!Number.isFinite(measuredMs)) return reject('REJECTED_TIME', stationId);
       const measuredAt = new Date(measuredMs).toISOString();
       // Симулятор обязан ставить точное виртуальное время тика; устройство — не позже часов прогона.
-      if (sender.kind === 'simulator' ? measuredAt !== tickTime : measuredAt > tickTime || measuredAt < run.simStart) {
+      // Симулятор и внешний датчик (через MQTT-адаптер) ставят точное время своего часа; устройство по HTTP — не позже часов прогона.
+      if (sender.kind === 'simulator' || external ? measuredAt !== tickTime : measuredAt > tickTime || measuredAt < run.simStart) {
         return reject('REJECTED_TIME', stationId);
       }
 
@@ -151,7 +164,7 @@ export function ingest(db: Db, sender: Sender, req: IngestRequest, now: string):
       }
     });
 
-    if (sender.kind === 'simulator' && (run.currentTick === null || tick > run.currentTick)) updateRun(db, run.id, { currentTick: tick });
+    if ((sender.kind === 'simulator' || external) && (run.currentTick === null || tick > run.currentTick)) updateRun(db, run.id, { currentTick: tick });
     const touch = db.prepare('UPDATE stations SET last_message_at = ? WHERE id = ?');
     for (const id of touched) touch.run(now, id);
 

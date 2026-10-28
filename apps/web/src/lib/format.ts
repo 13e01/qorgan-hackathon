@@ -47,6 +47,14 @@ export function timeOnly(iso: string | number | null | undefined, lang: Lang): s
   return new Intl.DateTimeFormat(LOCALE[lang], { timeZone: KZ_TZ, hour: '2-digit', minute: '2-digit' }).format(d);
 }
 
+/** Время с секундами (для показаний внешнего датчика, приходящих каждые 2 с). */
+export function timeWithSeconds(iso: string | null | undefined, lang: Lang): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return new Intl.DateTimeFormat(LOCALE[lang], { timeZone: KZ_TZ, hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(d);
+}
+
 export function shortDateTime(ms: number, lang: Lang): string {
   return new Intl.DateTimeFormat(LOCALE[lang], { timeZone: KZ_TZ, day: '2-digit', month: '2-digit', hour: '2-digit' }).format(new Date(ms));
 }

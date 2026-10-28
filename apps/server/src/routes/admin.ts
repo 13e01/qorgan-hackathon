@@ -265,6 +265,72 @@ export function adminRoutes(db: Db, now: () => Date, onChanged: () => void, opti
       return { stationCode: st.code, token, note: 'TOKEN_SHOWN_ONCE' };
     });
 
+    // ── Внешние устройства (Python-датчик и др. через MQTT) ──────────────────────────────────────────────────
+    const deviceRow = (id: number) => {
+      const r = db.prepare('SELECT d.*, s.code AS station_code FROM devices d JOIN stations s ON s.id = d.station_id WHERE d.id = ?').get(id);
+      return r
+        ? { id: Number(r.id), deviceId: String(r.device_id), name: String(r.name), stationCode: String(r.station_code), status: String(r.status), lastSeenAt: r.last_seen_at === null ? null : String(r.last_seen_at), accepted: Number(r.accepted_count), rejected: Number(r.rejected_count) }
+        : null;
+    };
+    const deviceBody = z.object({
+      deviceId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$/),
+      name: z.string().trim().min(2).max(64),
+      stationCode: z.string().trim().min(1).max(32),
+    }).strict();
+    const stationIdByCode = (code: string) => {
+      const st = db.prepare("SELECT id FROM stations WHERE code = ? COLLATE NOCASE AND status <> 'disabled'").get(code);
+      if (!st) throw new AppError(400, 'STATION_NOT_FOUND', `Нет активной станции ${code}`);
+      return Number(st.id);
+    };
+
+    app.get('/api/admin/devices', async () => ({
+      items: db.prepare('SELECT id FROM devices ORDER BY id').all().map((r) => deviceRow(Number(r.id))),
+    }));
+
+    app.post('/api/admin/devices', async (request, reply) => {
+      const input = parse(deviceBody, request.body);
+      if (db.prepare('SELECT 1 FROM devices WHERE device_id = ?').get(input.deviceId)) throw new AppError(409, 'DEVICE_ID_TAKEN', 'Такой идентификатор устройства уже есть');
+      const token = `qs_${randomBytes(24).toString('base64url')}`;
+      const at = now().toISOString();
+      const id = transaction(db, () => {
+        const { lastInsertRowid } = db
+          .prepare('INSERT INTO devices (device_id, name, station_id, token_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+          .run(input.deviceId, input.name, stationIdByCode(input.stationCode), sha256(token), at, at);
+        audit(request, 'DEVICE_CREATE', 'device', Number(lastInsertRowid), null, deviceRow(Number(lastInsertRowid)));
+        return Number(lastInsertRowid);
+      });
+      onChanged();
+      return reply.status(201).send({ device: deviceRow(id), token, note: 'TOKEN_SHOWN_ONCE' });
+    });
+
+    app.patch('/api/admin/devices/:id', async (request) => {
+      const { id } = parse(idParam, request.params);
+      const input = parse(z.object({ name: z.string().trim().min(2).max(64), stationCode: z.string().trim().min(1).max(32), status: z.enum(['active', 'disabled']) }).partial().strict(), request.body);
+      const before = deviceRow(id);
+      if (!before) throw new AppError(404, 'DEVICE_NOT_FOUND', `Устройство не найдено: ${id}`);
+      transaction(db, () => {
+        const at = now().toISOString();
+        if (input.name !== undefined) db.prepare('UPDATE devices SET name = ?, updated_at = ? WHERE id = ?').run(input.name, at, id);
+        if (input.stationCode !== undefined) db.prepare('UPDATE devices SET station_id = ?, updated_at = ? WHERE id = ?').run(stationIdByCode(input.stationCode), at, id);
+        if (input.status !== undefined) db.prepare('UPDATE devices SET status = ?, updated_at = ? WHERE id = ?').run(input.status, at, id);
+        audit(request, 'DEVICE_UPDATE', 'device', id, before, deviceRow(id));
+      });
+      onChanged();
+      return { device: deviceRow(id) };
+    });
+
+    app.post('/api/admin/devices/:id/token', async (request) => {
+      const { id } = parse(idParam, request.params);
+      const dev = deviceRow(id);
+      if (!dev) throw new AppError(404, 'DEVICE_NOT_FOUND', `Устройство не найдено: ${id}`);
+      const token = `qs_${randomBytes(24).toString('base64url')}`;
+      transaction(db, () => {
+        db.prepare('UPDATE devices SET token_hash = ?, updated_at = ? WHERE id = ?').run(sha256(token), now().toISOString(), id);
+        audit(request, 'DEVICE_TOKEN', 'device', id, null, { reissued: true });
+      });
+      return { deviceId: dev.deviceId, token, note: 'TOKEN_SHOWN_ONCE' };
+    });
+
     // ── Коэффициенты модели риска ────────────────────────────────────────────────────────────────────────────
     app.get('/api/admin/risk-config', async () => {
       const row = db.prepare('SELECT version, updated_at, updated_by FROM risk_config WHERE id = 1').get();

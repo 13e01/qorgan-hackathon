@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { SeedUser } from './db/seed';
+import type { SeedDevice, SeedUser } from './db/seed';
 
 export const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
@@ -18,6 +18,10 @@ export interface Config {
   webRoot: string;
   /** Публичное размещение (за HTTPS-прокси): cookie только по HTTPS, доверие заголовкам прокси, строгие проверки секретов. */
   publicDeployment: boolean;
+  /** MQTT: адрес брокера, служебная учётная запись QORGAN, порт локального брокера. */
+  mqtt: { enabled: boolean; url: string; username: string; password: string; brokerHost: string; brokerPort: number };
+  /** Демо-устройство (Python-датчик), создаётся при запуске, если задан SENSOR_TOKEN. */
+  seedDevices: SeedDevice[];
   /** Сколько прокси-узлов стоит перед сервером (для правильного IP клиента в журнале и ограничении попыток входа). */
   trustProxy: boolean;
 }
@@ -66,6 +70,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     sessionTtlHours: Number(env.SESSION_TTL_HOURS ?? 12),
     seedUsers,
     webRoot: fromRoot(env.WEB_ROOT ?? 'apps/web/dist'),
+    mqtt: {
+      enabled: env.MQTT_ENABLED !== 'false' && Boolean(env.MQTT_SERVICE_PASSWORD),
+      url: env.MQTT_URL ?? `mqtt://127.0.0.1:${env.MQTT_PORT ?? 1883}`,
+      username: env.MQTT_SERVICE_USERNAME ?? 'qorgan-server',
+      password: env.MQTT_SERVICE_PASSWORD ?? '',
+      brokerHost: env.MQTT_HOST ?? '127.0.0.1',
+      brokerPort: Number(env.MQTT_PORT ?? 1883),
+    },
+    seedDevices: env.SENSOR_TOKEN
+      ? [{ deviceId: env.SENSOR_DEVICE_ID ?? 'PY-SENSOR-01', name: env.SENSOR_NAME ?? 'Python-датчик уровня', stationCode: env.SENSOR_STATION ?? 'QRG-03', token: env.SENSOR_TOKEN }]
+      : [],
     publicDeployment: env.PUBLIC_DEPLOYMENT === 'true',
     trustProxy: env.TRUST_PROXY === 'true' || env.PUBLIC_DEPLOYMENT === 'true',
   };

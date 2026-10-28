@@ -155,7 +155,17 @@ export function StationCard({
           </span>
         )}
       </div>
-      {hasData && <div className="faint num">{t('card.measured', { time: dateTime(lv.measuredAt, lang) })}</div>}
+      {hasData && (
+        <div className="faint num">
+          {t('card.measured', { time: dateTime(lv.measuredAt, lang) })}
+          {snap?.latest.water_level?.source === 'device' && (
+            <span>
+              {' · '}
+              <span className="source-tag">{t('ext.sourceTag')}</span>
+            </span>
+          )}
+        </div>
+      )}
 
       <div className={`status-line tone-${status.tone}`}>
         <span className="status-dot" aria-hidden="true" />

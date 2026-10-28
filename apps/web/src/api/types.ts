@@ -45,6 +45,7 @@ export interface RunInfo {
 
 export interface SimulationState {
   state: SimState;
+  dataSource?: 'INTERNAL_SIMULATION' | 'EXTERNAL_SENSOR' | null;
   run: (RunInfo & { virtualTime: string | null; nextVirtualTime: string | null; progress: number | null; acceleration: number }) | null;
   realTime: string;
 }
@@ -120,6 +121,28 @@ export interface Snapshot {
   context: EvaluationContext;
   stations: SnapshotStation[];
   alerts?: { runId: number | null; active: AlertItem[]; unhandled: number };
+  devices?: DeviceSummary[];
+  mqtt?: 'disabled' | 'connecting' | 'connected' | 'offline';
+}
+
+/** Внешнее устройство (apps/server/src/mqtt/devices.ts). */
+export interface DeviceSummary {
+  deviceId: string;
+  name: string;
+  stationCode: string;
+  stationName: string;
+  status: string;
+  link: 'ONLINE' | 'STALE' | 'OFFLINE' | 'NEVER';
+  mqttStatus: string | null;
+  lastValue: number | null;
+  lastUnit: string | null;
+  lastSensorAt: string | null;
+  lastSeenAt: string | null;
+  lastMode: string | null;
+  lastResult: string | null;
+  lastSeq: number | null;
+  accepted: number;
+  rejected: number;
 }
 
 // ── Администрирование (apps/server/src/routes/admin.ts) ──

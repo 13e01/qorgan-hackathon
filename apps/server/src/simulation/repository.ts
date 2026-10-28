@@ -1,7 +1,7 @@
 // Доступ к прогонам симуляции в БД. Единственный источник виртуального времени —
 // sim_runs: virtualTime(tick) = sim_start + tick · step_minutes. Реальное время приходит только из `now()`.
 
-import type { Intervention, ParameterCode, ScenarioId, ScenarioParams, StationModel } from '@qorgan/shared';
+import { EXTERNAL_SCENARIO_ID, type DataSource, type Intervention, type ParameterCode, type ScenarioId, type ScenarioParams, type StationModel } from '@qorgan/shared';
 import type { Db } from '../db/connection';
 
 export type RunStatus = 'CREATED' | 'RUNNING' | 'PAUSED' | 'COMPLETED' | 'STOPPED';
@@ -44,6 +44,23 @@ function toRun(r: Record<string, unknown>): RunInfo {
   };
 }
 
+/** Прогон «Внешние датчики»: данные только от устройств (MQTT), встроенный симулятор не работает. */
+export function isExternalRun(run: Pick<RunInfo, 'scenarioId'>): boolean {
+  return run.scenarioId === EXTERNAL_SCENARIO_ID;
+}
+
+export function dataSourceOf(run: Pick<RunInfo, 'scenarioId'> | null): DataSource | null {
+  return run === null ? null : isExternalRun(run) ? 'EXTERNAL_SENSOR' : 'INTERNAL_SIMULATION';
+}
+
+/**
+ * Час модели для показания внешнего датчика: реальное время показания переводится в часы модели
+ * по масштабу прогона (tick_ms реальных мс = 1 час модели), как «1 ч симуляции = 0,5 с» у встроенного симулятора.
+ */
+export function externalTickAt(run: Pick<RunInfo, 'startedAt' | 'tickMs'>, realMs: number): number {
+  return Math.round((realMs - Date.parse(run.startedAt)) / run.tickMs);
+}
+
 export function getRun(db: Db, id: number): RunInfo | null {
   const row = db.prepare('SELECT * FROM sim_runs WHERE id = ?').get(id);
   return row ? toRun(row) : null;
@@ -76,11 +93,11 @@ export function runClock(db: Db, run: RunInfo): string | null {
 }
 
 export interface NewRun {
-  scenarioId: ScenarioId;
+  scenarioId: ScenarioId | typeof EXTERNAL_SCENARIO_ID;
   seed: number;
   params: ScenarioParams;
   tickMs: number;
-  totalTicks: number;
+  totalTicks: number | null;
   simStart: string;
   userId: number | null;
 }

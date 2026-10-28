@@ -1,3 +1,4 @@
+import { ExternalSensors } from '../components/ExternalSensors';
 import { StationCard } from '../components/StationCard';
 import { RiskBadge, Val } from '../components/ui';
 import { useStationDetails } from '../components/useStationDetails';
@@ -14,6 +15,8 @@ export function Stations() {
 
   return (
     <div className="split">
+      <div className="page-stack">
+      <ExternalSensors />
       <div className="card">
         <div className="card-head">
           <h2>{t('stations.title')}</h2>
@@ -68,6 +71,7 @@ export function Stations() {
           </tbody>
         </table>
         </div>
+      </div>
       </div>
       <StationCard code={selected} explanation={explanation} forecast={forecast} showHistory />
     </div>

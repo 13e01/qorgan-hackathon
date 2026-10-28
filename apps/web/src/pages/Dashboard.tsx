@@ -2,6 +2,7 @@
 // что можно сделать (одна-две крупные кнопки). Подробности — в карточке станции по кнопке «Подробнее» и в «Аналитике».
 
 import { AlertFeed } from '../components/AlertFeed';
+import { ExternalSensors } from '../components/ExternalSensors';
 import { LevelChart } from '../components/LevelChart';
 import { OutlookStrip } from '../components/OutlookStrip';
 import { SimControls, SimProgress } from '../components/SimControls';
@@ -61,6 +62,7 @@ export function Dashboard() {
           <StationMap />
         </div>
         <div className="dash-side">
+          <ExternalSensors compact />
           <AlertFeed />
           <StationList />
           <StationCard code={selected} explanation={explanation} forecast={forecast} />

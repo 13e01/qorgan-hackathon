@@ -22,7 +22,8 @@
     "db:fixture": "npm run db:fixture -w @qorgan/server",
     "demo:wave": "npm run demo:wave -w @qorgan/server --",
     "build": "npm run build -w @qorgan/web",
-    "dev:server": "npm run dev -w @qorgan/server"
+    "dev:server": "npm run dev -w @qorgan/server",
+    "mqtt:broker": "npm run mqtt:broker -w @qorgan/server"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
