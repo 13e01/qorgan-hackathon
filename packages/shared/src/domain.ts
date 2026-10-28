@@ -43,13 +43,25 @@ export const PARAMETERS: readonly ParameterDefinition[] = [
 
 /** Коэффициенты модели риска (ARCHITECTURE §8). Хранятся в risk_config, меняет администратор. */
 export interface RiskConfig {
+  /** Сколько последних измерений уровня берётся в расчёт тренда (N). */
   windowSize: number;
+  /** Минимум точек для расчёта скорости (N_min). */
   minPoints: number;
+  /** Порог «неподвижности», см/ч (ε). */
   epsilonCmH: number;
+  /** Максимальный правдоподобный скачок уровня за 1 ч, см (J_max). */
   maxJumpCm: number;
+  /** Разрыв между измерениями, после которого более старые точки не используются, ч. */
+  maxGapH: number;
+  /** Возраст последнего измерения, после которого данные считаются устаревшими, ч. */
+  staleAfterH: number;
+  /** Изменение скорости (см/ч) между началом и концом окна, считающееся ускорением/замедлением. */
+  accelerationCmH: number;
   forecastHorizonH: number;
   highEtaH: number;
   mediumEtaH: number;
+  /** Дальше этого срока время достижения порога не называется — линейная экстраполяция ненадёжна, ч. */
+  etaMaxH: number;
   upstreamHorizonH: number;
   rainWindowH: number;
   rainModerateMm: number;
@@ -80,9 +92,13 @@ export const DEFAULT_RISK_CONFIG: RiskConfig = {
   minPoints: 3,
   epsilonCmH: 0.5,
   maxJumpCm: 50,
+  maxGapH: 3,
+  staleAfterH: 3,
+  accelerationCmH: 2,
   forecastHorizonH: 3,
   highEtaH: 6,
   mediumEtaH: 24,
+  etaMaxH: 72,
   upstreamHorizonH: 72,
   rainWindowH: 6,
   rainModerateMm: 10,

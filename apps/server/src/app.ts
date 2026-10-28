@@ -4,6 +4,7 @@ import type { Db } from './db/connection';
 import { registerErrorHandlers } from './errors';
 import { authRoutes } from './routes/auth';
 import { healthRoutes } from './routes/health';
+import { riskRoutes } from './routes/risk';
 
 export interface AppOptions {
   db: Db;
@@ -19,5 +20,6 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await registerAuth(app, options.db, options.sessionSecret);
   await app.register(healthRoutes(options.db));
   await app.register(authRoutes(options.db, options.sessionTtlHours));
+  await app.register(riskRoutes(options.db));
   return app;
 }

@@ -1,9 +1,10 @@
-// Команды обслуживания БД: `npm run db:reset` и `npm run db:backup`.
+// Команды обслуживания БД: `npm run db:reset`, `npm run db:backup`, `npm run db:fixture`.
 
 import { existsSync, rmSync } from 'node:fs';
 import { loadConfig } from '../config';
 import { backupDb } from './backup';
 import { migrate, openDb } from './connection';
+import { insertFixture } from './fixture';
 import { seed } from './seed';
 
 const command = process.argv[2];
@@ -30,7 +31,15 @@ if (command === 'reset') {
   const file = backupDb(db, config.backupDir);
   db.close();
   console.log(`Резервная копия: ${file}`);
+} else if (command === 'fixture') {
+  const db = openDb(config.dbPath);
+  migrate(db);
+  seed(db, config.seedUsers);
+  const runId = insertFixture(db);
+  db.close();
+  console.log(`Проверочные данные (TEST_FIXTURE, не симулятор) записаны в прогон #${runId}.`);
+  console.log('Ожидается: QRG-01 HIGH, QRG-02 MEDIUM, QRG-03 LOW, QRG-04 MEDIUM.');
 } else {
-  console.error('Использование: tsx src/db/cli.ts reset|backup');
+  console.error('Использование: tsx src/db/cli.ts reset|backup|fixture');
   process.exit(1);
 }

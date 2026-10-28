@@ -9,7 +9,8 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json",
     "db:reset": "tsx src/db/cli.ts reset",
-    "db:backup": "tsx src/db/cli.ts backup"
+    "db:backup": "tsx src/db/cli.ts backup",
+    "db:fixture": "tsx src/db/cli.ts fixture"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.5",

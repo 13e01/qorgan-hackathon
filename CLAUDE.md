@@ -49,6 +49,7 @@ QORGAN — учебная система мониторинга и раннег�
 | `npm test` | все автотесты |
 | `npm run build` / `npm start` | сборка и демо-запуск на :3000 |
 | `npm run db:reset` / `npm run db:backup` | сброс БД к демо-состоянию / резервная копия |
+| `npm run db:fixture` | записать проверочный прогон TEST_FIXTURE (12 ч данных, не симулятор) |
 
 Окружение: Windows 11, Node 24.22.1, npm 11.19.1, Git 2.56 (Git Bash). Docker и `gh` не установлены.
 
