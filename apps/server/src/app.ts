@@ -9,8 +9,11 @@ import type { Db } from './db/connection';
 import { registerErrorHandlers } from './errors';
 import { RealtimeHub } from './realtime/hub';
 import { buildSnapshot } from './realtime/snapshot';
+import { adminRoutes } from './routes/admin';
+import { alertRoutes } from './routes/alerts';
 import { authRoutes } from './routes/auth';
 import { healthRoutes } from './routes/health';
+import { outlookRoutes } from './routes/outlook';
 import { riskRoutes } from './routes/risk';
 import { simulationRoutes } from './routes/simulation';
 import { stationRoutes } from './routes/stations';
@@ -28,6 +31,8 @@ export interface AppOptions {
   now?: () => Date;
   /** Папка собранного интерфейса (apps/web/dist). Если в ней есть index.html — сервер раздаёт интерфейс на том же порту. */
   webRoot?: string;
+  /** Папка резервных копий для кнопки администратора (POST /api/admin/backup). */
+  backupDir?: string;
 }
 
 declare module 'fastify' {
@@ -87,6 +92,9 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(stationRoutes(db, now));
   await app.register(riskRoutes(db, now));
   await app.register(simulationRoutes(db, runner, now));
+  await app.register(alertRoutes(db, now, () => hub.broadcastSnapshot({ type: 'alert' })));
+  await app.register(adminRoutes(db, now, () => hub.broadcastSnapshot({ type: 'admin' }), { backupDir: options.backupDir }));
+  await app.register(outlookRoutes(db, now));
   await app.register(telemetryRoutes(db, simulatorToken, now, () => hub.broadcastSnapshot({ type: 'telemetry' })));
   await app.register(async (scope) => {
     scope.get('/ws', { websocket: true }, (socket) => hub.add(socket));

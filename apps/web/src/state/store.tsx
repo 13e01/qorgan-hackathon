@@ -31,7 +31,7 @@ function liveReducer(state: LiveState, action: LiveAction): LiveState {
 
 export interface Notice {
   id: number;
-  kind: 'error' | 'info';
+  kind: 'error' | 'info' | 'alert';
   text: string;
 }
 
@@ -45,6 +45,8 @@ interface Store {
   setLoginOpen: (open: boolean) => void;
   stations: StationMeta[];
   stationsError: string | null;
+  /** Перечитать станции (после изменений в панели администратора). */
+  reloadStations: () => Promise<void>;
   scenarios: ScenarioInfo[];
   live: LiveState;
   connection: ConnectionStatus;
@@ -96,7 +98,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     noticeId.current += 1;
     const id = noticeId.current;
     setNotices((list) => [...list.slice(-3), { id, kind, text }]);
-    setTimeout(() => setNotices((list) => list.filter((n) => n.id !== id)), kind === 'error' ? 8000 : 4000);
+    setTimeout(() => setNotices((list) => list.filter((n) => n.id !== id)), kind === 'info' ? 4000 : 8000);
   }, []);
 
   const dismiss = useCallback((id: number) => setNotices((list) => list.filter((n) => n.id !== id)), []);
@@ -147,6 +149,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     socket.start();
     return () => socket.stop();
   }, [loadStations]);
+
+  // Всплывающее уведомление о новом или обострившемся предупреждении. Не при первой загрузке и не при смене прогона:
+  // показываем только то, что действительно произошло, пока пользователь смотрит на экран.
+  const seenAlerts = useRef<{ runId: number | null; severity: Map<number, string> } | null>(null);
+  useEffect(() => {
+    const a = live.snapshot?.alerts;
+    if (!a) return;
+    const prev = seenAlerts.current;
+    const next = new Map(a.active.map((x) => [x.id, x.severity]));
+    if (prev && prev.runId === a.runId) {
+      for (const x of a.active) {
+        const before = prev.severity.get(x.id);
+        if (before === undefined || (before === 'MEDIUM' && x.severity === 'HIGH')) {
+          notify('alert', t(before === undefined ? 'alert.toast.opened' : 'alert.toast.escalated', { station: x.stationName, risk: t(`risk.${x.severity}`) }));
+        }
+      }
+    }
+    seenAlerts.current = { runId: a.runId, severity: next };
+  }, [live.snapshot?.alerts, notify, t]);
 
   // После восстановления связи — свежие станции и истории (за время обрыва могли прийти тики).
   const prevConnection = useRef<ConnectionStatus>('connecting');
@@ -222,6 +243,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       setLoginOpen,
       stations,
       stationsError,
+      reloadStations: loadStations,
       scenarios,
       live,
       connection,
@@ -236,7 +258,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       simBusy,
       simCommand,
     }),
-    [user, authReady, login, logout, loginOpen, stations, stationsError, scenarios, live, connection, selected, notices, notify, dismiss, describeError, reportError, gate, simBusy, simCommand],
+    [user, authReady, login, logout, loginOpen, stations, stationsError, loadStations, scenarios, live, connection, selected, notices, notify, dismiss, describeError, reportError, gate, simBusy, simCommand],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

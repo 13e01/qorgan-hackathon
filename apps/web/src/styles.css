@@ -1994,6 +1994,617 @@ dialog::backdrop {
   margin-left: auto;
 }
 
+/* ---------- Genesis: общие элементы ---------- */
+.page-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+.field > span:first-child {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.field small {
+  font-size: var(--fs-xs);
+}
+
+.field.inline {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.field.inline > span:first-child {
+  font-weight: 500;
+  color: var(--text-2);
+}
+
+.row-actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+td.row-actions {
+  white-space: nowrap;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.count-pill,
+.nav-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--r-pill);
+  background: var(--risk-high-fill);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 8px;
+}
+
+.nav a {
+  position: relative;
+}
+
+.nav-badge {
+  margin-left: auto;
+}
+
+.is-collapsed .nav-badge {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  margin: 0;
+  min-width: 16px;
+  height: 16px;
+  font-size: 10px;
+}
+
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.link-btn:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.mono-sm {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+}
+
+.prose p + p {
+  margin-top: var(--sp-3);
+}
+
+.is-muted td {
+  opacity: 0.55;
+}
+
+.danger-text {
+  color: var(--risk-high) !important;
+}
+
+.table.compact td,
+.table.compact th {
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-5);
+  align-items: center;
+  margin-bottom: var(--sp-4);
+}
+
+.segmented.tabs {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.segmented.tabs button {
+  padding-inline: var(--sp-4);
+  white-space: nowrap;
+  width: auto;
+}
+
+.notice.alert {
+  border-left-color: var(--risk-high-fill);
+}
+
+.notice.alert .icon {
+  color: var(--risk-high);
+  flex: none;
+}
+
+/* ---------- Предупреждения ---------- */
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.alert-card {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--risk-medium-fill);
+  border-radius: var(--r-lg);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+}
+
+.alert-card.sev-HIGH {
+  border-left-color: var(--risk-high-fill);
+}
+
+.alert-card.is-cleared {
+  border-left-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+.alert-card.compact {
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.alert-main {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+}
+
+.alert-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert-reason {
+  font-size: var(--fs-sm);
+  margin-top: 2px;
+}
+
+.alert-meta {
+  font-size: var(--fs-xs);
+  margin-top: 2px;
+}
+
+.alert-status.s-NEW {
+  background: var(--risk-high-bg);
+  color: var(--risk-high);
+  border-color: transparent;
+}
+
+.alert-status.s-VIEWED {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: transparent;
+}
+
+.alert-status.s-RESOLVED {
+  background: var(--risk-low-bg);
+  color: var(--risk-low);
+  border-color: transparent;
+}
+
+.alert-actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  margin-top: var(--sp-3);
+}
+
+.alert-resolve {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: flex-end;
+  margin-top: var(--sp-3);
+}
+
+.alert-resolve .field {
+  flex: 1 1 260px;
+}
+
+.alert-events {
+  list-style: none;
+  margin: var(--sp-3) 0 0;
+  padding: var(--sp-3) 0 0;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: var(--fs-sm);
+}
+
+.alert-events li {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: var(--sp-3);
+}
+
+.alert-counters {
+  display: flex;
+  gap: var(--sp-4);
+}
+
+.counter {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+
+.counter b {
+  font-size: var(--fs-xl);
+  color: var(--text);
+  margin-right: 4px;
+}
+
+.alert-feed h2 {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* ---------- Администрирование ---------- */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--sp-3) var(--sp-4);
+  margin: var(--sp-3) 0;
+}
+
+.admin-form h3 {
+  margin-bottom: var(--sp-2);
+}
+
+.token-box {
+  justify-content: space-between;
+}
+
+.token {
+  display: block;
+  margin-top: var(--sp-2);
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  word-break: break-all;
+  user-select: all;
+  background: var(--surface);
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+}
+
+.chip.link-ONLINE,
+.chip.link-STALE,
+.chip.link-OFFLINE,
+.chip.lvl-error,
+.chip.lvl-warn {
+  border-color: transparent;
+}
+
+.chip.link-ONLINE {
+  background: var(--risk-low-bg);
+  color: var(--risk-low);
+}
+
+.chip.link-STALE,
+.chip.lvl-warn {
+  background: var(--risk-medium-bg);
+  color: var(--risk-medium);
+}
+
+.chip.link-OFFLINE,
+.chip.lvl-error {
+  background: var(--risk-high-bg);
+  color: var(--risk-high);
+}
+
+/* ---------- Прогноз по реке ---------- */
+.outlook-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  padding: 10px var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--accent-soft);
+  color: var(--text);
+  text-decoration: none;
+  max-width: 640px;
+}
+
+.outlook-strip .eyebrow {
+  display: block;
+}
+
+.outlook-strip.has-threat {
+  background: var(--risk-high-bg);
+}
+
+.outlook-strip.has-threat > .icon:first-child {
+  color: var(--risk-high);
+}
+
+.outlook-strip > .icon:last-child {
+  margin-left: auto;
+  color: var(--text-2);
+}
+
+.outlook-strip:hover {
+  outline: 1px solid var(--border-strong);
+}
+
+.river-board {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rb-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 210px) minmax(0, 1fr) minmax(170px, 260px);
+  gap: var(--sp-4);
+  align-items: center;
+  padding: 10px var(--sp-3);
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+button.rb-row {
+  cursor: pointer;
+}
+
+button.rb-row:hover {
+  background: var(--surface-2);
+}
+
+.rb-row.is-selected {
+  background: var(--accent-soft);
+  border-color: var(--accent-ring);
+}
+
+.rb-axis {
+  padding-top: 0;
+  padding-bottom: 4px;
+  font-size: var(--fs-xs);
+}
+
+.rb-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rb-name .faint {
+  font-size: var(--fs-xs);
+}
+
+.rb-axis .rb-lane {
+  position: relative;
+  height: 16px;
+}
+
+.rb-axis .rb-lane span {
+  position: absolute;
+  transform: translateX(-50%);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+.rb-axis .rb-lane span:first-child {
+  transform: none;
+}
+
+.lane {
+  display: block;
+  width: 100%;
+  height: 28px;
+}
+
+.lane-bg {
+  fill: var(--surface-2);
+}
+
+.lane-ok {
+  fill: transparent;
+}
+
+.lane-unknown {
+  fill: var(--border);
+  opacity: 0.5;
+}
+
+.lane-w {
+  fill: var(--risk-medium-fill);
+}
+
+.lane-w-maybe {
+  fill: var(--risk-medium-fill);
+  opacity: 0.35;
+}
+
+.lane-d {
+  fill: var(--risk-high-fill);
+}
+
+.lane-d-maybe {
+  fill: var(--risk-high-fill);
+  opacity: 0.35;
+}
+
+.rb-eta {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--fs-sm);
+}
+
+.rb-eta .faint {
+  font-size: var(--fs-xs);
+}
+
+.rb-eta-main {
+  font-weight: 600;
+}
+
+.rb-eta.tone-high .rb-eta-main,
+.rb-eta.tone-high-soon .rb-eta-main {
+  color: var(--risk-high);
+}
+
+.rb-eta.tone-medium .rb-eta-main {
+  color: var(--risk-medium);
+}
+
+.rb-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  font-size: var(--fs-xs);
+  padding: var(--sp-2) var(--sp-3) 0;
+}
+
+.rb-legend .sw {
+  display: inline-block;
+  width: 14px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+
+.sw.lane-w {
+  background: var(--risk-medium-fill);
+}
+
+.sw.lane-d {
+  background: var(--risk-high-fill);
+}
+
+.sw.lane-d-maybe {
+  background: var(--risk-high-fill);
+  opacity: 0.35;
+}
+
+.sw.lane-unknown {
+  background: var(--border);
+}
+
+.outlook-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+
+.outlook-facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.outlook-facts .faint {
+  font-size: var(--fs-xs);
+}
+
+.lead-compare {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 220px;
+}
+
+.lead-compare > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+}
+
+.lead-bar {
+  display: inline-block;
+  height: 8px;
+  border-radius: 4px;
+  min-width: 3px;
+  max-width: 120px;
+  flex: none;
+}
+
+.lead-bar.outlook {
+  background: var(--chart-forecast);
+}
+
+.lead-bar.trend {
+  background: var(--border-strong);
+}
+
+@media (max-width: 900px) {
+  .rb-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px var(--sp-3);
+  }
+
+  .rb-row .rb-lane {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .rb-axis .rb-name,
+  .rb-axis .rb-eta {
+    display: none;
+  }
+
+  .rb-eta {
+    text-align: right;
+  }
+
+  .alert-events li {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
 /* ---------- Адаптивность ---------- */
 @media (max-width: 1439px) {
   .sim-clock .faint {

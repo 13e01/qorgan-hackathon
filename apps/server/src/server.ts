@@ -17,6 +17,7 @@ const app = await buildApp({
   sessionTtlHours: config.sessionTtlHours,
   logger: true,
   webRoot: config.webRoot,
+  backupDir: config.backupDir,
 });
 
 app.log.info(`БД ${config.dbPath}: схема v${version}, добавлено станций ${summary.stations}, пользователей ${summary.users}`);

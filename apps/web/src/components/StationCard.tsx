@@ -9,6 +9,8 @@ import { dateTime, metersFromCm, number, signed } from '../lib/format';
 import { levelView } from '../lib/level';
 import { plainStatus } from '../lib/status';
 import { useStore } from '../state/store';
+import { useAlertList } from '../pages/Alerts';
+import { AlertCard } from './AlertItem';
 import { LevelChart } from './LevelChart';
 import { TrendIcon } from './StationList';
 import { Disclosure, Icon, RiskBadge, Val } from './ui';
@@ -52,6 +54,23 @@ function ForecastBlock({ forecast }: { forecast: ForecastResponse | null }) {
       )}
       <p className="faint note">{t('forecast.disclaimer')}</p>
     </>
+  );
+}
+
+/** История предупреждений станции в текущем прогоне (ТЗ §5.5). Гостю — только активные. */
+function StationAlerts({ code }: { code: string }) {
+  const { t } = useI18n();
+  const { user, live } = useStore();
+  const { items } = useAlertList(`station=${encodeURIComponent(code)}&limit=20`, user !== null);
+  const list = user ? items : (live.snapshot?.alerts?.active.filter((a) => a.stationCode === code) ?? []);
+  if (list === null) return <p className="muted">{t('common.loading')}</p>;
+  if (list.length === 0) return <p className="muted">{t('alerts.stationNone')}</p>;
+  return (
+    <div className="alert-list">
+      {list.map((a) => (
+        <AlertCard key={a.id} alert={a} compact />
+      ))}
+    </div>
   );
 }
 
@@ -199,6 +218,11 @@ export function StationCard({
           <Factors explanation={explanation} />
           {r && <p className="faint num note">{t('risk.score', { score: r.score, max: r.maxScore })}</p>}
           <p className="faint note">{t('risk.model')}</p>
+        </section>
+
+        <section className="section">
+          <h3>{t('alerts.stationHistory')}</h3>
+          <StationAlerts code={code} />
         </section>
 
         <section className="section">

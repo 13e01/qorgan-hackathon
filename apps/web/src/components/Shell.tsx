@@ -6,14 +6,17 @@ import { dateTime } from '../lib/format';
 import { useStore } from '../state/store';
 import { Icon, LangSwitch, ModePill, ThemeSwitch, type IconName } from './ui';
 
-export const ROUTES = ['dashboard', 'stations', 'analytics', 'simulator'] as const;
+export const ROUTES = ['dashboard', 'outlook', 'alerts', 'stations', 'analytics', 'simulator', 'admin'] as const;
 export type Route = (typeof ROUTES)[number];
 
-const NAV: Array<{ route: Route; key: MessageKey; icon: IconName }> = [
+const NAV: Array<{ route: Route; key: MessageKey; icon: IconName; adminOnly?: boolean }> = [
   { route: 'dashboard', key: 'nav.dashboard', icon: 'dashboard' },
+  { route: 'outlook', key: 'nav.outlook', icon: 'timeline' },
+  { route: 'alerts', key: 'nav.alerts', icon: 'bell' },
   { route: 'stations', key: 'nav.stations', icon: 'stations' },
   { route: 'analytics', key: 'nav.analytics', icon: 'analytics' },
   { route: 'simulator', key: 'nav.simulator', icon: 'simulator' },
+  { route: 'admin', key: 'nav.admin', icon: 'shield', adminOnly: true },
 ];
 
 export function Logo() {
@@ -40,7 +43,10 @@ export function Sidebar({
   onCloseMobile: () => void;
 }) {
   const { t } = useI18n();
+  const { user, live } = useStore();
   const firstLink = useRef<HTMLAnchorElement>(null);
+  const unhandled = live.snapshot?.alerts?.unhandled ?? 0;
+  const items = NAV.filter((n) => !n.adminOnly || user?.role === 'admin');
 
   // В выдвижном меню фокус — на первый пункт; Esc закрывает.
   useEffect(() => {
@@ -64,7 +70,7 @@ export function Sidebar({
         </button>
       </div>
       <nav className="nav">
-        {NAV.map((n, i) => (
+        {items.map((n, i) => (
           <a
             key={n.route}
             ref={i === 0 ? firstLink : undefined}
@@ -75,6 +81,11 @@ export function Sidebar({
           >
             <Icon name={n.icon} />
             <span className="nav-label">{t(n.key)}</span>
+            {n.route === 'alerts' && unhandled > 0 && (
+              <span className="nav-badge num" aria-label={t('alerts.unhandledAria', { n: unhandled })}>
+                {unhandled > 99 ? '99+' : unhandled}
+              </span>
+            )}
           </a>
         ))}
       </nav>

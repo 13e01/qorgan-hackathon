@@ -36,7 +36,8 @@ export function Notices() {
   return (
     <div className="notices" aria-live="polite">
       {notices.map((n) => (
-        <div key={n.id} className={`notice ${n.kind}`} role={n.kind === 'error' ? 'alert' : 'status'}>
+        <div key={n.id} className={`notice ${n.kind}`} role={n.kind === 'info' ? 'status' : 'alert'}>
+          {n.kind === 'alert' && <Icon name="bell" />}
           <span>{n.text}</span>
           <button className="icon-btn" onClick={() => dismiss(n.id)} aria-label={t('common.close')}>
             <Icon name="close" />
@@ -132,6 +133,13 @@ const ICONS = {
   arrowFlat: <path d="M5 12h14M13 6l6 6-6 6" />,
   user: <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 20.5a7.5 7.5 0 0 1 15 0" />,
   logout: <path d="M14 4h4.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H14M10 16l-4-4 4-4M6 12h10" />,
+  bell: <path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0" />,
+  shield: <path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6zM9 12l2 2 4-4" />,
+  eye: <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />,
+  check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
+  timeline: <path d="M4 6h9M4 12h14M4 18h6M15 4v4M20 10v4M12 16v4" />,
+  plus: <path d="M12 5v14M5 12h14" />,
+  key: <path d="M14.5 9.5a4 4 0 1 0-3.6 4l1.1 1.1h2v2h2v2h3v-3l-4.9-4.9c.3-.4.4-.8.4-1.2zM8.5 9.5h.01" />,
 } as const;
 
 export type IconName = keyof typeof ICONS;

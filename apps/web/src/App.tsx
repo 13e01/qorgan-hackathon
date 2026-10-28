@@ -4,8 +4,11 @@ import { ROUTES, Sidebar, TopBar, type Route } from './components/Shell';
 import { LoginDialog, Notices } from './components/ui';
 import { useI18n } from './i18n';
 import { browserStore, readSidebarCollapsed, writeSidebarCollapsed } from './lib/prefs';
+import { Admin } from './pages/Admin';
+import { Alerts } from './pages/Alerts';
 import { Analytics } from './pages/Analytics';
 import { Dashboard } from './pages/Dashboard';
+import { Outlook } from './pages/Outlook';
 import { Simulator } from './pages/Simulator';
 import { Stations } from './pages/Stations';
 import { useStore } from './state/store';
@@ -61,6 +64,9 @@ export function App() {
           {route === 'stations' && <Stations />}
           {route === 'analytics' && <Analytics />}
           {route === 'simulator' && <Simulator />}
+          {route === 'outlook' && <Outlook />}
+          {route === 'alerts' && <Alerts />}
+          {route === 'admin' && <Admin />}
         </main>
       </div>
       <LoginDialog />

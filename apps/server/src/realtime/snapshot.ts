@@ -2,6 +2,7 @@
 // Всё берётся на один момент — виртуальное время активного (или последнего) прогона.
 
 import { describeSituation, type RiskSituation } from '@qorgan/shared';
+import { alertSummary, type AlertRow } from '../alerts/repository';
 import type { Db } from '../db/connection';
 import { createEvaluator, type EvaluationContext } from '../risk/service';
 import type { SimulationRunner, SimulationState } from '../simulation/runner';
@@ -37,6 +38,8 @@ export interface Snapshot {
   simulation: SimulationState;
   context: EvaluationContext;
   stations: StationSnapshot[];
+  /** Активные (опубликованные) предупреждения текущего прогона и число необработанных. */
+  alerts: { runId: number | null; active: AlertRow[]; unhandled: number };
 }
 
 export function buildSnapshot(db: Db, runner: SimulationRunner, now: string): Snapshot {
@@ -88,5 +91,5 @@ export function buildSnapshot(db: Db, runner: SimulationRunner, now: string): Sn
       },
     };
   });
-  return { simulation, context: evaluator.context(), stations };
+  return { simulation, context: evaluator.context(), stations, alerts: alertSummary(db) };
 }

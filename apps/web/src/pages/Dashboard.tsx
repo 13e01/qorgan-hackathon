@@ -1,7 +1,9 @@
 // Главная панель отвечает на три вопроса: что происходит (сводка), где опасность (карта и список станций),
 // что можно сделать (одна-две крупные кнопки). Подробности — в карточке станции по кнопке «Подробнее» и в «Аналитике».
 
+import { AlertFeed } from '../components/AlertFeed';
 import { LevelChart } from '../components/LevelChart';
+import { OutlookStrip } from '../components/OutlookStrip';
 import { SimControls, SimProgress } from '../components/SimControls';
 import { StationCard } from '../components/StationCard';
 import { StationList } from '../components/StationList';
@@ -37,6 +39,7 @@ export function Dashboard() {
             {ov.key !== 'overview.noData' && (
               <p className="faint">{t('overview.counts', { high: ov.counts.HIGH, medium: ov.counts.MEDIUM, low: ov.counts.LOW })}</p>
             )}
+            <OutlookStrip />
           </div>
           <div className="hero-actions">
             <button className="btn lg primary" onClick={begin} disabled={simBusy}>
@@ -58,6 +61,7 @@ export function Dashboard() {
           <StationMap />
         </div>
         <div className="dash-side">
+          <AlertFeed />
           <StationList />
           <StationCard code={selected} explanation={explanation} forecast={forecast} />
         </div>

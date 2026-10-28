@@ -82,10 +82,92 @@ export interface SnapshotStation {
   };
 }
 
+export type AlertSeverity = 'MEDIUM' | 'HIGH';
+export type AlertStatus = 'NEW' | 'VIEWED' | 'RESOLVED';
+export type AlertEventType = 'OPENED' | 'ESCALATED' | 'DEESCALATED' | 'CLEARED' | 'VIEWED' | 'RESOLVED';
+
+/** Предупреждение (apps/server/src/alerts/repository.ts). */
+export interface AlertItem {
+  id: number;
+  runId: number;
+  stationCode: string;
+  stationName: string;
+  hazardType: string;
+  severity: AlertSeverity;
+  trigger: 'DANGER_LEVEL' | 'FORECAST';
+  status: AlertStatus;
+  isActive: boolean;
+  openedTick: number;
+  lastTick: number;
+  clearedTick: number | null;
+  openedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  reasons: Reason[];
+}
+
+export interface AlertEvent {
+  id: number;
+  tick: number | null;
+  type: AlertEventType;
+  comment: string | null;
+  user: string | null;
+  createdAt: string;
+}
+
 export interface Snapshot {
   simulation: SimulationState;
   context: EvaluationContext;
   stations: SnapshotStation[];
+  alerts?: { runId: number | null; active: AlertItem[]; unhandled: number };
+}
+
+// ── Администрирование (apps/server/src/routes/admin.ts) ──
+export interface AdminStation extends Omit<StationMeta, 'parameters'> {
+  hasDeviceToken: boolean;
+  parameters: Array<{ code: string; warning: number | null; danger: number | null }>;
+}
+
+export interface AdminUser {
+  id: number;
+  username: string;
+  role: 'operator' | 'admin';
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SourceLink = 'ONLINE' | 'STALE' | 'OFFLINE' | 'IDLE' | 'DISABLED';
+export interface SourceItem {
+  id: number;
+  code: string;
+  name: string;
+  status: string;
+  link: SourceLink;
+  lastMessageAt: string | null;
+  rejected24h: number;
+  flaggedInRun: number;
+  hasDeviceToken: boolean;
+}
+
+export interface DeviceLogItem {
+  id: number;
+  level: 'info' | 'warn' | 'error';
+  code: string;
+  stationCode: string | null;
+  details: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface AuditItem {
+  id: number;
+  action: string;
+  entity: string;
+  entityId: string | null;
+  user: string | null;
+  before: unknown;
+  after: unknown;
+  createdAt: string;
 }
 
 export interface StationMeta {

@@ -7,6 +7,7 @@
 //  • После остановки приём данных этого прогона закрыт и на стороне API (RUN_NOT_ACTIVE).
 //  • Состояние хранится в БД; после перезапуска сервера идущий прогон встаёт на паузу.
 
+import { closeRunAlerts } from '../alerts/engine';
 import {
   createGenerator,
   PARAMETERS,
@@ -281,6 +282,7 @@ export class SimulationRunner {
       const run = this.requireLive();
       this.clearTimer();
       updateRun(this.deps.db, run.id, { status: 'STOPPED', stoppedAt: this.nowIso() });
+      closeRunAlerts(this.deps.db, run.id, this.nowIso());
       this.audit(userId, 'SIM_STOP', run.id);
       this.changed();
       return this.state();
@@ -293,7 +295,10 @@ export class SimulationRunner {
       const run = activeRun(this.deps.db);
       this.clearTimer();
       transaction(this.deps.db, () => {
-        if (run && LIVE_STATUSES.includes(run.status)) updateRun(this.deps.db, run.id, { status: 'STOPPED', stoppedAt: this.nowIso() });
+        if (run && LIVE_STATUSES.includes(run.status)) {
+          updateRun(this.deps.db, run.id, { status: 'STOPPED', stoppedAt: this.nowIso() });
+          closeRunAlerts(this.deps.db, run.id, this.nowIso());
+        }
         setActiveRun(this.deps.db, null, this.nowIso());
         this.audit(userId, 'SIM_RESET', run?.id ?? null);
       });
@@ -415,6 +420,7 @@ export class SimulationRunner {
   private complete(run: RunInfo): void {
     this.clearTimer();
     updateRun(this.deps.db, run.id, { status: 'COMPLETED', finishedAt: this.nowIso() });
+    closeRunAlerts(this.deps.db, run.id, this.nowIso());
     this.audit(null, 'SIM_COMPLETE', run.id);
     this.changed();
   }

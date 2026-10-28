@@ -1,6 +1,10 @@
 // Типы из общего пакета, которые нужны интерфейсу. Только `import type` — в браузерную сборку код сервера не попадает.
 export type {
   Confidence as ConfidenceLevel,
+  Crossing,
+  OutlookResult,
+  StationOutlook,
+  StationVerification,
   EtaStatus,
   ForecastStatus,
   PublicUser,
@@ -8,6 +12,7 @@ export type {
   ReasonCode,
   RiskFactor,
   RiskLevel,
+  RiskConfig,
   RiskSituation,
   ScenarioId,
   TrendDirection,

@@ -3,9 +3,10 @@
 // Если что-то падает, не сохраняется ничего, и отправитель может повторить пакет: дубли не создаются.
 
 import { PARAMETERS, type ParameterCode } from '@qorgan/shared';
+import { processAlerts, type AlertChange } from '../alerts/engine';
 import { transaction, type Db } from '../db/connection';
 import { AppError } from '../errors';
-import { createEvaluator, type StationEvaluation } from '../risk/service';
+import { createEvaluator, loadRiskConfig, type StationEvaluation } from '../risk/service';
 import { getRun, updateRun, virtualTime, type RunInfo } from '../simulation/repository';
 
 export interface TelemetryRecord {
@@ -43,6 +44,8 @@ export interface IngestResult {
   duplicates: number;
   rejected: Array<{ index: number; code: RejectCode }>;
   evaluations: StationEvaluation[];
+  /** Изменения предупреждений этого тика (открыты, обострены, сняты). */
+  alerts: AlertChange[];
 }
 
 const PARAMS = new Map(PARAMETERS.map((p) => [p.code as string, p]));
@@ -156,7 +159,9 @@ export function ingest(db: Db, sender: Sender, req: IngestRequest, now: string):
     const evaluator = createEvaluator(db, { runId: run.id, at: tickTime, computedAt: now });
     const evaluations = evaluator.evaluateAll();
     persistAssessments(db, run.id, tick, evaluations, evaluator.configVersion);
+    // Предупреждения — в той же транзакции, что и оценки, которые их вызвали (ТЗ §5.6).
+    const alerts = processAlerts(db, run.id, tick, evaluations, now, loadRiskConfig(db).config.clearAfterLowCount);
 
-    return { runId: run.id, tick, virtualTime: tickTime, accepted, duplicates, rejected, evaluations };
+    return { runId: run.id, tick, virtualTime: tickTime, accepted, duplicates, rejected, evaluations, alerts };
   });
 }
