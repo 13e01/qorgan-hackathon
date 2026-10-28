@@ -11,7 +11,13 @@ const version = migrate(db);
 const summary = seed(db, config.seedUsers);
 const userCount = Number(db.prepare('SELECT COUNT(*) AS n FROM users').get()?.n ?? 0);
 
-const app = await buildApp({ db, sessionSecret: config.sessionSecret, sessionTtlHours: config.sessionTtlHours, logger: true });
+const app = await buildApp({
+  db,
+  sessionSecret: config.sessionSecret,
+  sessionTtlHours: config.sessionTtlHours,
+  logger: true,
+  webRoot: config.webRoot,
+});
 
 app.log.info(`БД ${config.dbPath}: схема v${version}, добавлено станций ${summary.stations}, пользователей ${summary.users}`);
 if (userCount === 0) app.log.warn('В БД нет пользователей — вход невозможен. Выполните `npm run setup`, затем `npm run db:reset`.');

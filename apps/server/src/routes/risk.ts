@@ -7,6 +7,7 @@
 
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import { describeSituation } from '@qorgan/shared';
 import { requireRole } from '../auth/plugin';
 import type { Db } from '../db/connection';
 import { AppError, parse } from '../errors';
@@ -51,6 +52,7 @@ export function riskRoutes(db: Db, now: () => Date) {
         trend: { direction: a.trend.direction, rateCmH: a.trend.rateCmH },
         dataQuality: { status: a.dataQuality.status, confidence: a.dataQuality.confidence },
         topReasons: a.reasons.slice(0, 3),
+        situation: describeSituation(a),
       };
     });
 
@@ -71,6 +73,7 @@ export function riskRoutes(db: Db, now: () => Date) {
         factors: a.factors,
         reasons: a.reasons,
         dataQuality: a.dataQuality,
+        situation: describeSituation(a),
       };
     });
 

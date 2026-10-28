@@ -1,6 +1,7 @@
 // Снимок состояния для интерфейса: состояние симулятора + по каждой станции последние показания и риск.
 // Всё берётся на один момент — виртуальное время активного (или последнего) прогона.
 
+import { describeSituation, type RiskSituation } from '@qorgan/shared';
 import type { Db } from '../db/connection';
 import { createEvaluator, type EvaluationContext } from '../risk/service';
 import type { SimulationRunner, SimulationState } from '../simulation/runner';
@@ -17,11 +18,18 @@ export interface StationSnapshot {
     score: number;
     maxScore: number;
     levelCm: number | null;
+    /** Время последнего использованного измерения уровня (виртуальное) и его возраст относительно часов прогона. */
+    measuredAt: string | null;
+    ageH: number | null;
+    warningCm: number | null;
+    dangerCm: number | null;
     trend: string;
     rateCmH: number | null;
     dataStatus: string;
     confidence: string;
     topReasons: unknown[];
+    /** Локальная обстановка отдельно от угрозы сверху по течению (см. describeSituation). */
+    situation: RiskSituation;
   };
 }
 
@@ -67,11 +75,16 @@ export function buildSnapshot(db: Db, runner: SimulationRunner, now: string): Sn
         score: a.score,
         maxScore: a.maxScore,
         levelCm: a.level.currentCm,
+        measuredAt: a.level.measuredAt,
+        ageH: a.level.ageH,
+        warningCm: a.level.warningCm,
+        dangerCm: a.level.dangerCm,
         trend: a.trend.direction,
         rateCmH: a.trend.rateCmH,
         dataStatus: a.dataQuality.status,
         confidence: a.dataQuality.confidence,
         topReasons: a.reasons.slice(0, 3),
+        situation: describeSituation(a),
       },
     };
   });

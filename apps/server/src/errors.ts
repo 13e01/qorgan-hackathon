@@ -28,7 +28,7 @@ export function parse<S extends z.ZodType>(schema: S, data: unknown): z.infer<S>
 }
 
 /** Все ошибки отдаются в одном формате `{ error: { code, message } }`; внутренние детали не раскрываются. */
-export function registerErrorHandlers(app: FastifyInstance): void {
+export function registerErrorHandlers(app: FastifyInstance, options: { spaIndexHtml?: string } = {}): void {
   app.setErrorHandler((err: FastifyError | AppError, request, reply) => {
     if (err instanceof AppError) {
       return reply.status(err.statusCode).send(body(err.code, err.message));
@@ -42,6 +42,11 @@ export function registerErrorHandlers(app: FastifyInstance): void {
   });
 
   app.setNotFoundHandler((request, reply) => {
+    // Собранный интерфейс — одностраничное приложение: неизвестные пути вне /api и /ws отдают index.html.
+    const isApi = request.url.startsWith('/api') || request.url.startsWith('/ws');
+    if (options.spaIndexHtml && request.method === 'GET' && !isApi) {
+      return reply.type('text/html; charset=utf-8').send(options.spaIndexHtml);
+    }
     reply.status(404).send(body('NOT_FOUND', `Маршрут не найден: ${request.method} ${request.url}`));
   });
 }

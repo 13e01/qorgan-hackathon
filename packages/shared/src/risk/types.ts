@@ -20,32 +20,34 @@ export type FactorCode = 'LEVEL' | 'TREND' | 'RAIN' | 'MELT' | 'UPSTREAM';
 export type FactorStatus = 'OK' | 'NO_DATA' | 'NO_SENSOR' | 'NOT_APPLICABLE' | 'STALE';
 
 /** Коды причин переводит фронтенд; params подставляются в текст. */
-export type ReasonCode =
-  | 'LEVEL_ABOVE_DANGER'
-  | 'LEVEL_ABOVE_WARNING'
-  | 'ETA_DANGER_WITHIN'
-  | 'ETA_BEYOND_HORIZON'
-  | 'RISING'
-  | 'FALLING'
-  | 'STABLE'
-  | 'ACCELERATING_RISE'
-  | 'DECELERATING_RISE'
-  | 'HEAVY_RAIN'
-  | 'MODERATE_RAIN'
-  | 'SNOWMELT'
-  | 'UPSTREAM_WAVE'
-  | 'NO_DATA'
-  | 'NO_SENSOR'
-  | 'NO_THRESHOLD'
-  | 'INSUFFICIENT_DATA'
-  | 'STALE_DATA'
-  | 'SPIKE_IGNORED'
-  | 'SPIKE_UNCONFIRMED'
-  | 'SUDDEN_JUMP'
-  | 'DATA_GAP'
-  | 'INVALID_POINTS'
-  | 'FUTURE_POINTS'
-  | 'DUPLICATE_TIMESTAMPS';
+export const REASON_CODES = [
+  'LEVEL_ABOVE_DANGER',
+  'LEVEL_ABOVE_WARNING',
+  'ETA_DANGER_WITHIN',
+  'ETA_BEYOND_HORIZON',
+  'RISING',
+  'FALLING',
+  'STABLE',
+  'ACCELERATING_RISE',
+  'DECELERATING_RISE',
+  'HEAVY_RAIN',
+  'MODERATE_RAIN',
+  'SNOWMELT',
+  'UPSTREAM_WAVE',
+  'NO_DATA',
+  'NO_SENSOR',
+  'NO_THRESHOLD',
+  'INSUFFICIENT_DATA',
+  'STALE_DATA',
+  'SPIKE_IGNORED',
+  'SPIKE_UNCONFIRMED',
+  'SUDDEN_JUMP',
+  'DATA_GAP',
+  'INVALID_POINTS',
+  'FUTURE_POINTS',
+  'DUPLICATE_TIMESTAMPS',
+] as const;
+export type ReasonCode = (typeof REASON_CODES)[number];
 
 export interface Reason {
   code: ReasonCode;

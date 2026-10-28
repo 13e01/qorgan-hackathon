@@ -13,14 +13,16 @@
   },
   "scripts": {
     "setup": "node scripts/setup-env.mjs",
-    "dev": "npm run dev -w @qorgan/server",
+    "dev": "node scripts/dev.mjs",
     "start": "npm run start -w @qorgan/server",
     "test": "npm test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "db:reset": "npm run db:reset -w @qorgan/server",
     "db:backup": "npm run db:backup -w @qorgan/server",
     "db:fixture": "npm run db:fixture -w @qorgan/server",
-    "demo:wave": "npm run demo:wave -w @qorgan/server --"
+    "demo:wave": "npm run demo:wave -w @qorgan/server --",
+    "build": "npm run build -w @qorgan/web",
+    "dev:server": "npm run dev -w @qorgan/server"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

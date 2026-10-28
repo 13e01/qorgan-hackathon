@@ -14,6 +14,8 @@ export interface Config {
   sessionSecret: string;
   sessionTtlHours: number;
   seedUsers: SeedUser[];
+  /** Собранный интерфейс; раздаётся, если существует (после `npm run build`). */
+  webRoot: string;
 }
 
 /** Читает настройки из переменных окружения и файла .env в корне проекта (если он есть). */
@@ -45,5 +47,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     sessionSecret,
     sessionTtlHours: Number(env.SESSION_TTL_HOURS ?? 12),
     seedUsers,
+    webRoot: fromRoot(env.WEB_ROOT ?? 'apps/web/dist'),
   };
 }

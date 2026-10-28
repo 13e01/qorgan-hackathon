@@ -1,4 +1,7 @@
 import { randomBytes } from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { registerAuth } from './auth/plugin';
@@ -23,6 +26,8 @@ export interface AppOptions {
   scheduler?: Scheduler;
   /** Источник реального времени (единственный в приложении). */
   now?: () => Date;
+  /** Папка собранного интерфейса (apps/web/dist). Если в ней есть index.html — сервер раздаёт интерфейс на том же порту. */
+  webRoot?: string;
 }
 
 declare module 'fastify' {
@@ -37,7 +42,9 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const { db } = options;
   const now = options.now ?? (() => new Date());
   const app = Fastify({ logger: options.logger ?? false, bodyLimit: 1_048_576 });
-  registerErrorHandlers(app);
+  const indexFile = options.webRoot ? join(options.webRoot, 'index.html') : null;
+  const spaIndexHtml = indexFile && existsSync(indexFile) ? readFileSync(indexFile, 'utf8') : undefined;
+  registerErrorHandlers(app, { spaIndexHtml });
   await registerAuth(app, db, options.sessionSecret);
   await app.register(websocket);
 
@@ -84,5 +91,9 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(async (scope) => {
     scope.get('/ws', { websocket: true }, (socket) => hub.add(socket));
   });
+  if (spaIndexHtml && options.webRoot) {
+    await app.register(fastifyStatic, { root: options.webRoot, index: false, wildcard: false });
+    app.get('/', (_request, reply) => reply.type('text/html; charset=utf-8').send(spaIndexHtml));
+  }
   return app;
 }
