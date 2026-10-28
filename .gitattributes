@@ -1,2 +1,9 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Файлы, которые читаются внутри Linux-контейнера, всегда с LF
+Dockerfile text eol=lf
+*.yml text eol=lf
+deploy/* text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf

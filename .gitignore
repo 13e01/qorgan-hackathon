@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+data/
+.env
+*.log
+.env.*
+!.env.example
+!.env.production.example
+.venv/
+__pycache__/
+
+# Блокировка «один экземпляр» Python-датчика
+sensors/python/.sensor-*.lock

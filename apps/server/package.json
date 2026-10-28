@@ -1,0 +1,30 @@
+{
+  "name": "@qorgan/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
+    "db:reset": "tsx src/db/cli.ts reset",
+    "db:backup": "tsx src/db/cli.ts backup",
+    "db:fixture": "tsx src/db/cli.ts fixture",
+    "demo:wave": "tsx src/demo/wave.ts",
+    "mqtt:broker": "tsx src/mqtt/broker-cli.ts"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/static": "^10.1.8",
+    "@fastify/websocket": "^11.3.4",
+    "@qorgan/shared": "^0.1.0",
+    "aedes": "^1.2.0",
+    "fastify": "^5.12.7",
+    "mqtt": "^5.16.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.2"
+  }
+}

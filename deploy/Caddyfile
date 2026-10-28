@@ -1,0 +1,13 @@
+# Обратный прокси для QORGAN. Caddy сам получает и продлевает сертификат Let's Encrypt для {$DOMAIN}
+# и проксирует WebSocket (/ws) без дополнительных настроек.
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy qorgan:3000
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}
