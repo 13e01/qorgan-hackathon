@@ -8,7 +8,7 @@ import { buildApp } from '../src/app';
 import { migrate, openDb, type Db } from '../src/db/connection';
 import { seed } from '../src/db/seed';
 import { startBroker } from '../src/mqtt/broker';
-import { telemetryTopic } from '../src/mqtt/protocol';
+import { SERVER_STATUS_TOPIC, telemetryTopic } from '../src/mqtt/protocol';
 import { buildSnapshot } from '../src/realtime/snapshot';
 import { TEST_USERS } from './helpers';
 import { simApp, TestClock } from './sim-helpers';
@@ -112,6 +112,22 @@ describe('MQTT-адаптер (логика, управляемые часы)', 
     expect(dev.rejected).toBeGreaterThanOrEqual(10);
   });
 
+  it('после обрыва связи буфер датчика приходит пачкой: все показания с правильным шагом времени принимаются', async () => {
+    const { s, clock, send } = await setup();
+    const { body } = await s.post('/api/simulation/external/start', { hourMs: HOUR_MS });
+    clock.advance(20 * HOUR_MS);
+    // 10 показаний, измеренных раз в 2 с за последние 20 с, приходят одновременно.
+    const base = clock.now().getTime() - 20 * HOUR_MS;
+    for (let i = 0; i < 10; i += 1) {
+      expect(await send({ value: 330 + i, timestamp: new Date(base + i * HOUR_MS).toISOString() }), `#${i}`).toBe('ACCEPTED');
+    }
+    expect(deviceRows(s.db, body.run.id)).toHaveLength(10);
+    // А поток больше 20 сообщений в секунду отсекается.
+    const results = [];
+    for (let i = 0; i < 25; i += 1) results.push(await send({ value: 350, timestamp: new Date(clock.now().getTime() + i).toISOString() }));
+    expect(results.filter((r) => r === 'RATE_LIMITED').length).toBeGreaterThan(0);
+  });
+
   it('режим DANGER: быстрый подъём → модель риска T2 поднимает оценку и создаёт предупреждение с причиной', async () => {
     const { s, clock, send } = await setup();
     const { body } = await s.post('/api/simulation/external/start', { hourMs: HOUR_MS });
@@ -213,6 +229,49 @@ describe('настоящая передача по MQTT (брокер + клие
     const denied = await new Promise<boolean>((resolve) => dev.subscribe(telemetryTopic(DEVICE), { qos: 1 }, (err, granted) => resolve(Boolean(err) || granted?.[0]?.qos === 128)));
     expect(denied).toBe(true);
     dev.end(true);
+  });
+
+  it('присутствие QORGAN: датчик видит «online» только после подписки сервера и «offline» после его остановки', async () => {
+    const { db, broker } = await stack();
+    const sensor = await connect(broker.port, DEVICE, TOKEN);
+    const seen: string[] = [];
+    sensor.on('message', (topic, payload) => topic === SERVER_STATUS_TOPIC && seen.push(String(payload)));
+    const granted = await new Promise<number>((resolve) => sensor.subscribe(SERVER_STATUS_TOPIC, { qos: 1 }, (_e, g) => resolve(g?.[0]?.qos ?? 128)));
+    expect(granted).toBe(1);
+    const app = await buildApp({ db, sessionSecret: 'x'.repeat(40), sessionTtlHours: 1, mqtt: { url: `mqtt://127.0.0.1:${broker.port}`, ...SERVICE } });
+    expect(await until(() => seen.includes('online'))).toBe(true);
+    await app.close();
+    expect(await until(() => seen.at(-1) === 'offline')).toBe(true);
+    // Устройство не может объявить себя сервером.
+    const rogue = await connect(broker.port, DEVICE, TOKEN);
+    const closed = new Promise<boolean>((resolve) => rogue.once('close', () => resolve(true)));
+    rogue.publish(SERVER_STATUS_TOPIC, 'online', { qos: 1, retain: true });
+    expect(await Promise.race([closed, new Promise<boolean>((r) => setTimeout(() => r(false), 3000))])).toBe(true);
+    rogue.end(true);
+    sensor.end(true);
+  });
+
+  it('постоянная сессия: показание, отправленное пока QORGAN перезапускался, доходит после его возвращения', async () => {
+    const { db, broker } = await stack();
+    const mk = () => buildApp({ db, sessionSecret: 'x'.repeat(40), sessionTtlHours: 1, mqtt: { url: `mqtt://127.0.0.1:${broker.port}`, ...SERVICE } });
+    const sensor = await connect(broker.port, DEVICE, TOKEN);
+    const online: string[] = [];
+    sensor.on('message', (_t, p) => online.push(String(p)));
+    sensor.subscribe(SERVER_STATUS_TOPIC, { qos: 1 });
+    const app1 = await mk();
+    expect(await until(() => online.at(-1) === 'online')).toBe(true);
+    const cookie = (await app1.inject({ method: 'POST', url: '/api/auth/login', payload: { username: 'operator', password: 'operator-test-pass' } })).cookies.find((c) => c.name === 'qorgan_sid')!;
+    await app1.inject({ method: 'POST', url: '/api/simulation/external/start', headers: { cookie: `qorgan_sid=${cookie.value}` }, payload: { hourMs: 500 } });
+    await app1.close();
+    // Гонка: датчик ещё не узнал, что QORGAN ушёл, и отправляет показание — брокер держит его в сессии QORGAN.
+    await new Promise<void>((resolve) => sensor.publish(telemetryTopic(DEVICE), JSON.stringify(message({ seq: 1, value: 333.3, timestamp: new Date().toISOString() })), { qos: 1 }, () => resolve()));
+    const runId = Number(db.prepare('SELECT run_id FROM sim_control').get()?.run_id);
+    expect(deviceRows(db, runId)).toHaveLength(0);
+    const app2 = await mk();
+    closers.push(() => app2.close());
+    expect(await until(() => deviceRows(db, runId).length === 1)).toBe(true);
+    expect(deviceRows(db, runId)[0]).toMatchObject({ value: 333.3, source: 'device' });
+    sensor.end(true);
   });
 
   it('датчик → брокер → подписчик QORGAN → SQLite → риск → WebSocket-снимок; чужой топик и retain не доходят; переподключение после перезапуска брокера', async () => {

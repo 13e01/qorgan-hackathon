@@ -29,6 +29,8 @@ from pathlib import Path
 MODES = ("NORMAL", "RISING", "DANGER", "FALLING")
 MODE_KEYS = {"N": "NORMAL", "R": "RISING", "D": "DANGER", "F": "FALLING"}
 TOPIC_PREFIX = "qorgan/v1/sensors"
+# QORGAN сообщает здесь, принимает ли он данные: online — подписка подтверждена, offline — сервер недоступен.
+SERVER_STATUS_TOPIC = "qorgan/v1/server/status"
 # QORGAN не принимает показания старше 5 минут — дольше их хранить в буфере нет смысла.
 BUFFER_MAX_AGE_S = 300
 MIN_CM, MAX_CM = 0.0, 1500.0
@@ -80,6 +82,11 @@ def telemetry_topic(device_id: str) -> str:
 
 def status_topic(device_id: str) -> str:
     return f"{TOPIC_PREFIX}/{device_id}/status"
+
+
+def can_send(broker_connected: bool, server_online: bool) -> bool:
+    """Показание отправляется, только если есть связь с брокером И QORGAN подписан (иначе брокер его просто отбросит)."""
+    return broker_connected and server_online
 
 
 def iso_now(now: datetime | None = None) -> str:
@@ -179,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
 
     model = WaterLevelModel(level_cm=args.initial, seed=args.seed)
     boot_id = uuid.uuid4().hex[:12]
-    state = {"mode": args.mode, "connected": False, "stop": False, "seq": 0}
+    state = {"mode": args.mode, "connected": False, "server": False, "stop": False, "seq": 0}
     buffer = OutBuffer()
     pending: dict[int, dict] = {}
     pending_lock = threading.Lock()
@@ -188,7 +195,7 @@ def main(argv: list[str] | None = None) -> int:
     client.username_pw_set(device_id, token)
     # «Завещание»: если связь оборвётся, брокер сам сообщит QORGAN, что датчик offline.
     client.will_set(status_topic(device_id), "offline", qos=1, retain=True)
-    client.reconnect_delay_set(min_delay=1, max_delay=10)
+    client.reconnect_delay_set(min_delay=1, max_delay=5)
 
     def log(text: str) -> None:
         print(f"[{datetime.now().strftime('%H:%M:%S')}] {text}", flush=True)
@@ -200,14 +207,33 @@ def main(argv: list[str] | None = None) -> int:
         state["connected"] = True
         log(f"подключено к mqtt://{args.host}:{port} как {device_id}")
         client.publish(status_topic(device_id), "online", qos=1, retain=True)
+        client.subscribe(SERVER_STATUS_TOPIC, qos=1)
+
+    def flush() -> None:
         # Показания, накопленные без связи, отправляются по порядку (сервер отбросит повторы по bootId + seq).
-        for msg in buffer.take_fresh(time.monotonic()):
+        fresh = buffer.take_fresh(time.monotonic())
+        if fresh:
+            log(f"QORGAN на связи — отправляю накопленные показания: {len(fresh)}")
+        for msg in fresh:
             send(msg)
 
+    def on_message(_c, _u, message):  # noqa: ANN001
+        if message.topic != SERVER_STATUS_TOPIC:
+            return
+        online = message.payload.decode("utf-8", "replace").strip().lower() == "online"
+        if online and not state["server"]:
+            state["server"] = True
+            log("QORGAN принимает данные (server online)")
+            flush()
+        elif not online and state["server"]:
+            state["server"] = False
+            log("QORGAN недоступен (server offline) — показания копятся в буфере")
+
     def on_disconnect(_c, _u, _flags, reason_code, _props):  # noqa: ANN001
-        if state["connected"]:
+        if state["connected"] and not state["stop"]:
             log(f"связь потеряна ({reason_code}) — показания копятся в буфере, переподключаюсь…")
         state["connected"] = False
+        state["server"] = False
         # Неподтверждённые сообщения возвращаются в буфер — после переподключения уйдут снова.
         with pending_lock:
             for msg in pending.values():
@@ -229,6 +255,7 @@ def main(argv: list[str] | None = None) -> int:
     client.on_connect = on_connect
     client.on_disconnect = on_disconnect
     client.on_publish = on_publish
+    client.on_message = on_message
 
     def stop(*_args) -> None:  # noqa: ANN002
         state["stop"] = True
@@ -264,12 +291,13 @@ def main(argv: list[str] | None = None) -> int:
             mode = state["mode"]
             value = model.step(mode)
             msg = build_message(device_id, station, value, state["seq"], boot_id, mode)
-            if state["connected"]:
+            if can_send(state["connected"], state["server"]):
                 send(msg)
                 status = "отправлено"
             else:
                 buffer.add(time.monotonic(), msg)
-                status = f"нет связи, в буфере {len(buffer)}"
+                reason = "нет связи" if not state["connected"] else "ждём QORGAN"
+                status = f"{reason}, в буфере {len(buffer)}"
             log(f"#{state['seq']:<4} {mode:<8} {value:7.1f} см  {status}")
             if args.count and state["seq"] >= args.count:
                 time.sleep(1.0)  # дать дойти подтверждению последнего сообщения
@@ -277,7 +305,10 @@ def main(argv: list[str] | None = None) -> int:
             next_at += args.interval
             time.sleep(max(0.0, next_at - time.monotonic()))
     finally:
+        state["stop"] = True
         log("остановка датчика…")
+        if len(buffer):
+            log(f"не отправлено (не было связи): {len(buffer)} показ.")
         if state["connected"]:
             client.publish(status_topic(device_id), "offline", qos=1, retain=True).wait_for_publish(timeout=2)
         client.disconnect()

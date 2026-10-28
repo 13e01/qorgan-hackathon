@@ -2,6 +2,9 @@
 //
 //   qorgan/v1/sensors/{deviceId}/telemetry — показание (QoS 1, без retain), JSON ниже
 //   qorgan/v1/sensors/{deviceId}/status    — "online" / "offline" (retain; "offline" — завещание LWT при обрыве)
+//   qorgan/v1/server/status                — QORGAN: "online" (после подтверждения подписки) / "offline" (завещание).
+//                                           Датчик отправляет показания только когда QORGAN online, иначе копит их:
+//                                           подтверждение брокера (PUBACK) не означает, что сообщение получил QORGAN.
 //
 // Устройство подключается к брокеру с логином = deviceId и паролем = токен устройства; брокер разрешает ему
 // публиковать только в свои топики. Поэтому deviceId в топике нельзя подменить, а в теле он сверяется с топиком.
@@ -11,6 +14,7 @@ import { z } from 'zod';
 export const TOPIC_PREFIX = 'qorgan/v1/sensors';
 export const TELEMETRY_SUBSCRIPTION = `${TOPIC_PREFIX}/+/telemetry`;
 export const STATUS_SUBSCRIPTION = `${TOPIC_PREFIX}/+/status`;
+export const SERVER_STATUS_TOPIC = 'qorgan/v1/server/status';
 
 const DEVICE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{1,63}$/;
 

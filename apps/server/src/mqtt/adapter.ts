@@ -11,8 +11,10 @@ import { parseTopic, sensorMessageSchema } from './protocol';
 export const MAX_FUTURE_MS = 30_000;
 /** Старше — устаревшее показание (например, долго лежало в буфере устройства без связи). */
 export const MAX_AGE_MS = 5 * 60_000;
-/** Не чаще одного показания устройства за это время (защита от потока сообщений). */
+/** Показания устройства не чаще, чем раз в это время — по времени ИЗМЕРЕНИЯ (буфер после обрыва связи приходит пачкой, это нормально). */
 export const MIN_INTERVAL_MS = 500;
+/** Защита от потока сообщений: не больше стольких сообщений устройства в секунду по времени прихода. */
+export const MAX_MESSAGES_PER_S = 20;
 
 export type AdapterResult =
   | 'ACCEPTED'
@@ -44,12 +46,13 @@ export interface AdapterDeps {
 
 export function createSensorAdapter(deps: AdapterDeps) {
   const { db } = deps;
-  const lastAccepted = new Map<string, number>();
+  const lastMeasured = new Map<string, number>();
+  const arrivals = new Map<string, number[]>();
   const lastLogged = new Map<string, number>();
 
   const findDevice = (deviceId: string) =>
     db
-      .prepare('SELECT d.id, d.device_id, d.status, d.last_boot_id, d.last_seq, s.code AS station_code FROM devices d JOIN stations s ON s.id = d.station_id WHERE d.device_id = ?')
+      .prepare('SELECT d.id, d.device_id, d.status, d.last_boot_id, d.last_seq, d.last_sensor_at, s.code AS station_code FROM devices d JOIN stations s ON s.id = d.station_id WHERE d.device_id = ?')
       .get(deviceId);
 
   const note = (deviceId: string, stationCode: string | null, result: AdapterResult, details: Record<string, unknown>) => {
@@ -80,6 +83,11 @@ export function createSensorAdapter(deps: AdapterDeps) {
       if (!device) return 'UNKNOWN_DEVICE';
       const stationCode = String(device.station_code);
       const at = deps.now();
+      // Поток сообщений (не путать с пачкой из буфера): больше MAX_MESSAGES_PER_S за секунду — отбрасываем.
+      const recent = (arrivals.get(deviceId) ?? []).filter((t) => t > at.getTime() - 1000);
+      recent.push(at.getTime());
+      arrivals.set(deviceId, recent);
+      if (recent.length > MAX_MESSAGES_PER_S) return note(deviceId, stationCode, 'RATE_LIMITED', { perSecond: recent.length });
 
       if (parsedTopic.kind === 'status') {
         const text = String(payload).trim().toLowerCase();
@@ -114,7 +122,10 @@ export function createSensorAdapter(deps: AdapterDeps) {
       const measuredMs = Date.parse(msg.timestamp);
       if (measuredMs > at.getTime() + MAX_FUTURE_MS) return note(deviceId, stationCode, 'FUTURE', { timestamp: msg.timestamp });
       if (measuredMs < at.getTime() - MAX_AGE_MS) return note(deviceId, stationCode, 'STALE', { timestamp: msg.timestamp });
-      if (at.getTime() - (lastAccepted.get(deviceId) ?? 0) < MIN_INTERVAL_MS) return note(deviceId, stationCode, 'RATE_LIMITED', {});
+      const prevMeasured = lastMeasured.get(deviceId) ?? (device.last_sensor_at ? Date.parse(String(device.last_sensor_at)) : null);
+      if (prevMeasured !== null && measuredMs > prevMeasured - MIN_INTERVAL_MS && measuredMs < prevMeasured + MIN_INTERVAL_MS && measuredMs !== prevMeasured) {
+        return note(deviceId, stationCode, 'RATE_LIMITED', { timestamp: msg.timestamp });
+      }
 
       // Один источник данных на прогон: во время встроенной симуляции показания датчика не записываются.
       const run = activeRun(db);
@@ -135,7 +146,7 @@ export function createSensorAdapter(deps: AdapterDeps) {
         const code = res.status === 200 ? String(res.body?.rejected?.[0]?.code ?? 'REJECTED') : String(res.body?.error?.code ?? res.status);
         return note(deviceId, stationCode, 'REJECTED', { code, value: msg.value });
       }
-      lastAccepted.set(deviceId, at.getTime());
+      lastMeasured.set(deviceId, measuredMs);
       db.prepare(
         `UPDATE devices SET last_seen_at = ?, last_boot_id = ?, last_seq = ?, last_value = ?, last_unit = ?, last_sensor_at = ?, last_mode = ?,
            last_result = ?, accepted_count = accepted_count + ?, updated_at = ? WHERE device_id = ?`,

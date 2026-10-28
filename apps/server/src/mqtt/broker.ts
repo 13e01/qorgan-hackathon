@@ -5,13 +5,15 @@
 //   • анонимные подключения запрещены;
 //   • QORGAN (служебная учётная запись из .env) — только подписка на топики датчиков;
 //   • устройство: логин = deviceId, пароль = токен устройства (сверяется с SHA-256 в БД QORGAN, БД открывается
-//     только на чтение); публикует только в qorgan/v1/sensors/{свой deviceId}/telemetry|status, подписываться не может;
+//     только на чтение); публикует только в qorgan/v1/sensors/{свой deviceId}/telemetry|status, подписаться может
+//     только на qorgan/v1/server/status (знать, принимает ли QORGAN данные);
+//   • QORGAN публикует только qorgan/v1/server/status;
 //   • показания с флагом retain не пропускаются (устаревшие данные не должны «всплывать» у новых подписчиков).
 
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { createServer, type Server } from 'node:net';
 import { Aedes } from 'aedes';
-import { parseTopic, TOPIC_PREFIX } from './protocol';
+import { parseTopic, SERVER_STATUS_TOPIC, TOPIC_PREFIX } from './protocol';
 
 export interface BrokerOptions {
   /** Служебная учётная запись QORGAN. */
@@ -48,6 +50,7 @@ export async function createQorganBroker(options: BrokerOptions): Promise<Aedes>
     },
     authorizePublish: (client, packet, callback) => {
       const role = client ? roles.get(client) : undefined;
+      if (role?.kind === 'service') return callback(packet.topic === SERVER_STATUS_TOPIC ? null : new Error('publish not allowed'));
       const topic = parseTopic(packet.topic);
       if (role?.kind !== 'device' || !topic || topic.deviceId !== role.deviceId) return callback(new Error('publish not allowed'));
       if (topic.kind === 'telemetry' && packet.retain) return callback(new Error('retained telemetry not allowed'));
@@ -56,6 +59,7 @@ export async function createQorganBroker(options: BrokerOptions): Promise<Aedes>
     authorizeSubscribe: (client, subscription, callback) => {
       const role = client ? roles.get(client) : undefined;
       if (role?.kind === 'service' && subscription.topic.startsWith(`${TOPIC_PREFIX}/`)) return callback(null, subscription);
+      if (role?.kind === 'device' && subscription.topic === SERVER_STATUS_TOPIC) return callback(null, subscription);
       return callback(new Error('subscribe not allowed'), null);
     },
   });

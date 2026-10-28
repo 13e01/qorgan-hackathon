@@ -10,7 +10,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sensor import MODES, OutBuffer, WaterLevelModel, build_message, parse_args, read_env, status_topic, telemetry_topic
+from sensor import MODES, OutBuffer, WaterLevelModel, build_message, can_send, parse_args, read_env, status_topic, telemetry_topic
 
 
 class ModelTest(unittest.TestCase):
@@ -102,6 +102,12 @@ class SupportTest(unittest.TestCase):
         b.add(200, {"seq": 5})
         self.assertEqual([m["seq"] for m in b.take_fresh(now=301)], [5])
         self.assertEqual(len(b), 0)
+
+    def test_sends_only_when_broker_and_qorgan_online(self):
+        self.assertTrue(can_send(True, True))
+        self.assertFalse(can_send(True, False))  # брокер есть, QORGAN не подписан — сообщение потерялось бы
+        self.assertFalse(can_send(False, True))
+        self.assertFalse(can_send(False, False))
 
     def test_args(self):
         a = parse_args(["--mode", "danger", "--interval", "1"])
