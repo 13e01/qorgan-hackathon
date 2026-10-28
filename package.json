@@ -1,0 +1,29 @@
+{
+  "name": "qorgan",
+  "version": "0.1.0",
+  "private": true,
+  "description": "QORGAN — учебная платформа мониторинга и раннего предупреждения паводков (р. Есиль, СКО)",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "setup": "node scripts/setup-env.mjs",
+    "dev": "npm run dev -w @qorgan/server",
+    "start": "npm run start -w @qorgan/server",
+    "test": "npm test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:reset": "npm run db:reset -w @qorgan/server",
+    "db:backup": "npm run db:backup -w @qorgan/server"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

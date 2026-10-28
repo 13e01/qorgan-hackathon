@@ -83,8 +83,11 @@ docs/             — документация, презентация
 ## 5. Модель данных (SQLite)
 
 ```sql
-users(id PK, username UNIQUE, password_hash, role CHECK(role IN ('operator','admin')),
+users(id PK, username UNIQUE COLLATE NOCASE, password_hash, role CHECK(role IN ('operator','admin')),
       is_active, created_at, updated_at)
+
+sessions(id PK, user_id FK ON DELETE CASCADE, expires_at, created_at)   -- выход и отключение пользователя
+                                                                       -- сразу закрывают доступ
 
 parameters(code PK, unit, min_valid, max_valid, max_step NULL)       -- справочник §3
 
@@ -249,7 +252,7 @@ pulse — трапеция: рост T_rise ч до 1, плато T_peak ч, с�
 | Управление симуляцией, ручное измерение, сбои | — | ✓ | ✓ |
 | CRUD станций, параметров, порогов, коэффициентов; пользователи; источники; аудит; резервная копия | — | — | ✓ |
 
-Вход: `scrypt` из `node:crypto`, httpOnly-cookie сессии (`@fastify/cookie`, подпись секретом из `.env`), срок 12 ч. Демо-учётки создаёт seed (пароли из `.env`; в git только `.env.example`). Регистрации нет — пользователей создаёт админ. Последнего активного админа удалить/понизить нельзя.
+Вход: `scrypt` из `node:crypto`; сессия хранится в таблице `sessions`, браузер получает подписанную httpOnly-cookie `qorgan_sid` (`@fastify/cookie`, секрет из `.env`), срок 12 ч. Демо-учётки создаёт seed (пароли из `.env`; в git только `.env.example`). Регистрации нет — пользователей создаёт админ. Последнего активного админа удалить/понизить нельзя.
 
 ## 11. API
 

@@ -17,7 +17,8 @@ T7 Аналитика+сравнение прогонов ─► T8 Сбои и 
 
 ### T0. Phase 0 — анализ, сверка с ТЗ, документация ✅ (ждёт одобрения)
 
-### T1. Каркас, база данных, вход (≈1,5 ч) — REQ-004, REQ-006, REQ-021
+### T1. Каркас, база данных, вход (≈1,5 ч) — REQ-004, REQ-006, REQ-021 — ✅ готово 28.10
+> Сделано: `packages/shared`, `apps/server`. Пакеты `apps/simulator` и `apps/web` создаются в T3 и T4, когда в них появится код.
 - **Результат:** npm workspaces (`apps/server`, `apps/simulator`, `apps/web`, `packages/shared`), TypeScript, Vitest; миграции SQLite по ARCHITECTURE §5; seed: справочник параметров, 4 станции с показателями и порогами, `risk_config`, пользователи operator/admin (scrypt); `/api/health`; вход/выход/`me`; проверка ролей.
 - **Готово, когда:** `npm install`, `npm test`, `npm run dev` работают; `GET /api/health` → 200; вход с seed-учёткой работает; `npm run db:reset` пересоздаёт БД.
 - **Авто:** TC-D01…D03, TC-P05, TC-P07. **Вручную:** открыть /api/health.
