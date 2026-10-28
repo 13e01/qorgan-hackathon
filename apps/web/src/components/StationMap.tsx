@@ -16,7 +16,7 @@ import type { SnapshotStation, StationMeta } from '../api/types';
 import { useI18n } from '../i18n';
 import { metersFromCm } from '../lib/format';
 import { levelView } from '../lib/level';
-import { riverFlow, type FlowLink } from '../lib/flow';
+import { labelOnLeft, riverFlow, type FlowLink } from '../lib/flow';
 import river from '../map/esil-river.json';
 import { useStore } from '../state/store';
 import { usePalette, useTheme, type Palette } from '../state/theme';
@@ -87,11 +87,6 @@ function linksGeoJson(stations: StationMeta[], links: FlowLink[]) {
   };
 }
 
-/** Подпись слева, если прямо севернее есть другая станция (иначе подписи соседних станций перекрываются). По координатам из БД. */
-function labelLeft(st: StationMeta, all: StationMeta[]): boolean {
-  return all.some((o) => o.code !== st.code && o.lat > st.lat && o.lat - st.lat < 0.45 && Math.abs(o.lon - st.lon) < 0.8);
-}
-
 const riskColor = (c: Palette) => ['match', ['get', 'risk'], 'HIGH', c.riskHigh, 'MEDIUM', c.riskMedium, 'LOW', c.riskLow, c.link] as unknown as string;
 
 export function StationMap() {
@@ -114,6 +109,7 @@ export function StationMap() {
   const themeRef = useRef(theme);
   const baseRef = useRef(false);
   const reduced = useReducedMotion();
+  const [legendOpen] = useState(() => typeof matchMedia === 'function' && matchMedia('(min-width: 1600px)').matches);
 
   // Создание карты (один раз).
   useEffect(() => {
@@ -231,7 +227,7 @@ export function StationMap() {
         ev.stopPropagation();
         select(st.code);
       });
-      const left = labelLeft(st, stations);
+      const left = labelOnLeft(st, stations);
       if (left) el.classList.add('label-left');
       el.dataset.side = left ? 'left' : 'right';
       const marker = new maplibregl.Marker({ element: el, anchor: left ? 'right' : 'left', offset: [left ? 12 : -12, 0] }).setLngLat([st.lon, st.lat]).addTo(map);
@@ -332,7 +328,9 @@ export function StationMap() {
         </button>
       </div>
       {baseUnavailable && <div className="map-notice callout warn">{t('map.baseUnavailable')}</div>}
-      <div className="map-legend" aria-label={t('map.legend')}>
+      {/* Легенда сворачивается: на ноутбуке она не должна закрывать станции. Открыта по умолчанию только на широком экране. */}
+      <details className="map-legend" open={legendOpen || undefined}>
+        <summary>{t('map.legend')}</summary>
         <div className="row">
           <span className="legend-line" />
           {t('map.river')}
@@ -353,7 +351,7 @@ export function StationMap() {
             </span>
           ))}
         </div>
-      </div>
+      </details>
     </div>
   );
 }

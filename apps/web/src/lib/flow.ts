@@ -115,3 +115,17 @@ export function riverFlow(stations: StationMeta[], snapshot: Snapshot | null): R
 
   return { nodes, links, hasThreat: links.some((l) => l.state !== 'calm') };
 }
+
+/** Подпись маркера на карте — слева, если прямо севернее есть другая станция (иначе подписи соседей перекрываются). По координатам из БД. */
+export function labelOnLeft(st: Pick<StationMeta, 'code' | 'lat' | 'lon'>, all: Array<Pick<StationMeta, 'code' | 'lat' | 'lon'>>): boolean {
+  return all.some((o) => o.code !== st.code && o.lat > st.lat && o.lat - st.lat < 0.45 && Math.abs(o.lon - st.lon) < 0.8);
+}
+
+export type LifeStep = 'done' | 'current' | 'todo';
+
+/** Ход обработки предупреждения для шкалы «Новое → Просмотрено → Обработано»: только отображение статуса сервера. */
+export function alertLifecycle(status: 'NEW' | 'VIEWED' | 'RESOLVED'): Array<{ status: 'NEW' | 'VIEWED' | 'RESOLVED'; step: LifeStep }> {
+  const order = ['NEW', 'VIEWED', 'RESOLVED'] as const;
+  const at = order.indexOf(status);
+  return order.map((s, i) => ({ status: s, step: i < at ? 'done' : i === at ? 'current' : 'todo' }));
+}

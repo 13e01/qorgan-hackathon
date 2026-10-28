@@ -40,7 +40,9 @@ export function App() {
   useEffect(() => setMenuOpen(false), [route]);
   // Новый раздел открывается сверху (прокручивается область содержимого, а не окно).
   const contentRef = useRef<HTMLElement>(null);
-  useEffect(() => contentRef.current?.scrollTo({ top: 0 }), [route]);
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [route]);
 
   const toggle = useCallback(() => {
     setCollapsed((c) => {

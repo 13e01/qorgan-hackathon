@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import type { AlertEvent, AlertItem as Alert } from '../api/types';
 import { useI18n } from '../i18n';
+import { alertLifecycle } from '../lib/flow';
 import { dateTime } from '../lib/format';
 import { useStore } from '../state/store';
 import { Icon, RiskBadge } from './ui';
@@ -19,18 +20,15 @@ export function AlertStatusChip({ alert }: { alert: Alert }) {
   );
 }
 
-const LIFECYCLE = ['NEW', 'VIEWED', 'RESOLVED'] as const;
-
 /** Ход обработки (только отображение статуса сервера): открыто → просмотрено → обработано; «снято» — отдельно. */
 export function AlertLifecycle({ alert }: { alert: Alert }) {
   const { t } = useI18n();
-  const at = LIFECYCLE.indexOf(alert.status);
   return (
     <ol className="alert-life" aria-label={t('alert.lifecycle')}>
-      {LIFECYCLE.map((s, i) => (
-        <li key={s} className={i < at ? 'done' : i === at ? 'current' : ''} aria-current={i === at ? 'step' : undefined}>
+      {alertLifecycle(alert.status).map(({ status: s, step }) => (
+        <li key={s} className={step === 'todo' ? '' : step} aria-current={step === 'current' ? 'step' : undefined}>
           <span className="life-dot" aria-hidden="true">
-            {i <= at && <Icon name="check" />}
+            {step !== 'todo' && <Icon name="check" />}
           </span>
           {t(`alert.status.${s}`)}
         </li>

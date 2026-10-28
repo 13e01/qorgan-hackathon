@@ -153,7 +153,7 @@ h2 {
   height: 22px;
   padding: 0 7px;
   border-radius: var(--r-pill);
-  background: var(--risk-high-fill);
+  background: var(--badge-alert);
   color: #fff;
   font-size: var(--fs-xs);
   font-weight: 700;
@@ -1975,4 +1975,70 @@ dialog::backdrop {
 
 .demo-panel.is-compact .demo-message {
   font-size: var(--fs-base);
+}
+
+/* Легенда карты — раскрываемая (<details>). */
+.map-legend > summary {
+  cursor: pointer;
+  font-weight: 650;
+  color: var(--text);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.map-legend > summary::-webkit-details-marker {
+  display: none;
+}
+
+.map-legend > summary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  border-right: 1.6px solid currentColor;
+  border-bottom: 1.6px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.map-legend[open] > summary::after {
+  transform: rotate(-135deg) translateY(-1px);
+}
+
+.map-legend:not([open]) {
+  padding: 8px 12px;
+}
+
+@media (max-width: 767px) {
+  .map-legend {
+    display: flex;
+  }
+}
+
+/* Предупреждение на узкой ширине: текст не сжимается в столбик, статус переносится строкой ниже. */
+.alert-main {
+  flex-wrap: wrap;
+}
+
+.alert-body {
+  flex: 1 1 240px;
+}
+
+/* Невысокий экран ноутбука (≤ 820 px): сцена демо плотнее, чтобы карта была видна на первом экране. */
+@media (max-height: 820px) and (min-width: 768px) {
+  .demo-panel {
+    padding: 14px 22px 12px;
+    gap: 10px;
+  }
+  .demo-panel .demo-stage {
+    font-size: clamp(22px, 1rem + 1vw, 32px);
+  }
+  .demo-panel .demo-message {
+    font-size: var(--fs-base);
+  }
+  .dash-hero {
+    padding: 20px 24px;
+  }
 }
