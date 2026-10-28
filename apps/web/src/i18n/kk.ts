@@ -629,4 +629,6 @@ export const kk: Record<MessageKey, string> = {
   'alerts.scope.attention': 'Назар аударуды қажет етеді',
   'alerts.scope.attentionHint': 'Оператор әлі өңдемеген — шарт алынса да',
   'alerts.emptyAttention': 'Барлық ескертулер өңделді',
+
+  'error.TOO_MANY_ATTEMPTS': 'Кіру әрекеттері тым көп сәтсіз болды. 10 минут күтіңіз.',
 };

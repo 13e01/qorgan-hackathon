@@ -16,6 +16,24 @@ export interface Config {
   seedUsers: SeedUser[];
   /** Собранный интерфейс; раздаётся, если существует (после `npm run build`). */
   webRoot: string;
+  /** Публичное размещение (за HTTPS-прокси): cookie только по HTTPS, доверие заголовкам прокси, строгие проверки секретов. */
+  publicDeployment: boolean;
+  /** Сколько прокси-узлов стоит перед сервером (для правильного IP клиента в журнале и ограничении попыток входа). */
+  trustProxy: boolean;
+}
+
+/** Пароли из .env.example — только для локального показа; в публичном размещении запрещены. */
+const DEMO_PASSWORDS = new Set(['qorgan-operator-demo', 'qorgan-admin-demo']);
+
+/** Проверка настроек публичного размещения. Возвращает список проблем (пустой — можно запускать). */
+export function publicDeploymentProblems(env: NodeJS.ProcessEnv): string[] {
+  const problems: string[] = [];
+  if ((env.SESSION_SECRET ?? '').length < 32 || env.SESSION_SECRET === 'replace-me') problems.push('SESSION_SECRET: задайте случайную строку не короче 32 символов');
+  for (const key of ['SEED_OPERATOR_PASSWORD', 'SEED_ADMIN_PASSWORD'] as const) {
+    const v = env[key];
+    if (v !== undefined && (DEMO_PASSWORDS.has(v) || v.length < 12)) problems.push(`${key}: демо-пароль или короче 12 символов недопустим в публичном размещении`);
+  }
+  return problems;
 }
 
 /** Читает настройки из переменных окружения и файла .env в корне проекта (если он есть). */
@@ -48,5 +66,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     sessionTtlHours: Number(env.SESSION_TTL_HOURS ?? 12),
     seedUsers,
     webRoot: fromRoot(env.WEB_ROOT ?? 'apps/web/dist'),
+    publicDeployment: env.PUBLIC_DEPLOYMENT === 'true',
+    trustProxy: env.TRUST_PROXY === 'true' || env.PUBLIC_DEPLOYMENT === 'true',
   };
 }

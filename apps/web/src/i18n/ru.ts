@@ -627,6 +627,8 @@ export const ru = {
   'alerts.scope.attention': 'Требуют внимания',
   'alerts.scope.attentionHint': 'Ещё не обработаны оператором — даже если условие уже снято',
   'alerts.emptyAttention': 'Все предупреждения обработаны',
+
+  'error.TOO_MANY_ATTEMPTS': 'Слишком много неудачных попыток входа. Подождите 10 минут.',
 } as const;
 
 export type MessageKey = keyof typeof ru;

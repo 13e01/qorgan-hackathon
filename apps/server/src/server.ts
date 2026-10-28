@@ -1,11 +1,18 @@
 // Точка входа backend: настройки → БД (миграции + начальные данные) → HTTP-сервер.
 
 import { buildApp } from './app';
-import { loadConfig } from './config';
+import { loadConfig, publicDeploymentProblems } from './config';
 import { migrate, openDb } from './db/connection';
 import { seed } from './db/seed';
 
 const config = loadConfig();
+if (config.publicDeployment) {
+  const problems = publicDeploymentProblems(process.env);
+  if (problems.length) {
+    console.error(`[config] PUBLIC_DEPLOYMENT=true, но настройки небезопасны — сервер не запущен:\n  - ${problems.join('\n  - ')}`);
+    process.exit(1);
+  }
+}
 const db = openDb(config.dbPath);
 const version = migrate(db);
 const summary = seed(db, config.seedUsers);
@@ -18,10 +25,14 @@ const app = await buildApp({
   logger: true,
   webRoot: config.webRoot,
   backupDir: config.backupDir,
+  secureCookies: config.publicDeployment,
+  trustProxy: config.trustProxy,
 });
 
 app.log.info(`БД ${config.dbPath}: схема v${version}, добавлено станций ${summary.stations}, пользователей ${summary.users}`);
 if (userCount === 0) app.log.warn('В БД нет пользователей — вход невозможен. Выполните `npm run setup`, затем `npm run db:reset`.');
+
+app.log.info(config.publicDeployment ? 'Режим публичного размещения: cookie только по HTTPS, доверие прокси включено' : 'Локальный режим');
 
 const shutdown = async (signal: string) => {
   app.log.info(`${signal}: остановка сервера`);

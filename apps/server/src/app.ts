@@ -33,6 +33,10 @@ export interface AppOptions {
   webRoot?: string;
   /** Папка резервных копий для кнопки администратора (POST /api/admin/backup). */
   backupDir?: string;
+  /** Cookie сессии только по HTTPS (публичное размещение за прокси с TLS). */
+  secureCookies?: boolean;
+  /** Сервер стоит за обратным прокси: брать IP клиента из X-Forwarded-For. */
+  trustProxy?: boolean;
 }
 
 declare module 'fastify' {
@@ -46,7 +50,7 @@ declare module 'fastify' {
 export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const { db } = options;
   const now = options.now ?? (() => new Date());
-  const app = Fastify({ logger: options.logger ?? false, bodyLimit: 1_048_576 });
+  const app = Fastify({ logger: options.logger ?? false, bodyLimit: 1_048_576, trustProxy: options.trustProxy ?? false });
   const indexFile = options.webRoot ? join(options.webRoot, 'index.html') : null;
   const spaIndexHtml = indexFile && existsSync(indexFile) ? readFileSync(indexFile, 'utf8') : undefined;
   registerErrorHandlers(app, { spaIndexHtml });
@@ -88,7 +92,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   });
 
   await app.register(healthRoutes(db));
-  await app.register(authRoutes(db, options.sessionTtlHours));
+  await app.register(authRoutes(db, options.sessionTtlHours, { secureCookies: options.secureCookies ?? false, now }));
   await app.register(stationRoutes(db, now));
   await app.register(riskRoutes(db, now));
   await app.register(simulationRoutes(db, runner, now));

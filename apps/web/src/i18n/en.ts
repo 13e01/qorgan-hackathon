@@ -628,4 +628,6 @@ export const en: Record<MessageKey, string> = {
   'alerts.scope.attention': 'Need attention',
   'alerts.scope.attentionHint': 'Not yet handled by an operator — even if the condition has cleared',
   'alerts.emptyAttention': 'All alerts have been handled',
+
+  'error.TOO_MANY_ATTEMPTS': 'Too many failed sign-in attempts. Please wait 10 minutes.',
 };

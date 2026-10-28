@@ -1,0 +1,41 @@
+# Публичное размещение QORGAN на VPS: приложение + Caddy (автоматический HTTPS, WebSocket проксируется сам).
+# Подробно — docs/DEPLOYMENT.md. Перед запуском: cp .env.production.example .env.production и заполнить.
+#   DOMAIN=qorgan.example.kz docker compose up -d --build
+
+services:
+  qorgan:
+    build: .
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      PUBLIC_DEPLOYMENT: 'true'
+    volumes:
+      - qorgan-data:/data
+    expose:
+      - '3000'
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+
+  caddy:
+    image: caddy:2.8
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      DOMAIN: ${DOMAIN:?укажите DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      qorgan:
+        condition: service_healthy
+
+volumes:
+  qorgan-data:
+  caddy-data:
+  caddy-config:
