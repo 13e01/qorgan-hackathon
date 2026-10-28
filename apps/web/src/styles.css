@@ -2930,3 +2930,60 @@ button.rb-row:hover {
 .station-card .kv {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
 }
+
+/* ---------- Подготовка чистого демо (внешние датчики) ---------- */
+.demo-prep {
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--sp-3) var(--sp-4);
+  margin: var(--sp-3) 0;
+  background: var(--surface-2);
+}
+
+.demo-prep h3 {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--fs-md);
+}
+
+.prep-steps {
+  list-style: none;
+  padding: 0;
+  margin: var(--sp-3) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.prep-step {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: flex-start;
+  font-size: var(--fs-sm);
+}
+
+.prep-step.ok .icon {
+  color: var(--risk-low);
+}
+
+.prep-step.todo .icon {
+  color: var(--risk-medium);
+}
+
+.prep-step.unknown .icon {
+  color: var(--text-2);
+}
+
+.prep-hint {
+  display: block;
+  font-size: var(--fs-xs);
+}
+
+.prep-actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.device-totals {
+  margin: var(--sp-2) 0 0;
+}

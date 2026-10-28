@@ -13,9 +13,17 @@ if (!config.mqtt.password) {
   console.error('[брокер] В .env нет MQTT_SERVICE_PASSWORD. Выполните `npm run setup` и запустите снова.');
   process.exit(1);
 }
+// При самом первом запуске базу создаёт сервер QORGAN — брокер, запущенный одновременно с ним, ждёт её до 5 минут.
 if (!existsSync(config.dbPath)) {
-  console.error(`[брокер] Нет базы данных ${config.dbPath}. Сначала запустите QORGAN (npm start / npm run dev) или npm run db:reset.`);
-  process.exit(1);
+  console.log(`[брокер ${time()}] Жду базу данных ${config.dbPath}: её создаёт сервер QORGAN при первом запуске (start-qorgan.bat)…`);
+  const deadline = Date.now() + 5 * 60_000;
+  while (!existsSync(config.dbPath) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 1000));
+  if (!existsSync(config.dbPath)) {
+    console.error(`[брокер] Нет базы данных ${config.dbPath}. Сначала запустите QORGAN (start-qorgan.bat, npm start или npm run dev) или npm run db:reset.`);
+    process.exit(1);
+  }
+  // Сервер создаёт файл и сразу заполняет его — дать ему закончить миграции и демо-данные.
+  await new Promise((r) => setTimeout(r, 3000));
 }
 
 // База QORGAN открывается только на чтение: брокеру нужны лишь хеши токенов устройств.

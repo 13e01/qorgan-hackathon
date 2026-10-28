@@ -37,42 +37,76 @@ MIN_CM, MAX_CM = 0.0, 1500.0
 
 
 # ── Модель уровня воды (только своя физика датчика) ─────────────────────────────────────────────────────────
+# Уровни ниже — учебные значения для демонстрации (подобраны под учебные пороги станции Петропавловск в QORGAN:
+# предупредительный 480 см, опасный 580 см). Это НЕ официальные гидрологические нормы.
+DEFAULT_BASE_CM = 320.0      # начальный (нормальный) уровень
+DEFAULT_RISING_PEAK_CM = 500.0  # куда уровень поднимается в режиме RISING
+DEFAULT_DANGER_PEAK_CM = 650.0  # пик опасного подъёма в режиме DANGER
+DEFAULT_SEED = 1
+
+
 @dataclass
 class WaterLevelModel:
-    """Уровень воды у датчика. Один шаг = одно показание (по умолчанию раз в 2 с)."""
+    """Уровень воды у датчика. Один шаг = одно показание (по умолчанию раз в 2 с).
 
-    level_cm: float = 320.0
-    seed: int | None = None
-    # Скорость изменения за одно показание, см.
+    Каждый режим ведёт уровень к своей цели и не дальше — бесконечного роста нет:
+      NORMAL  → к начальному уровню (медленно, если вода была выше);
+      RISING  → к умеренному пику rising_peak_cm;
+      DANGER  → к опасному пику danger_peak_cm (быстро, у пика плавно замедляется и держится);
+      FALLING → к начальному уровню (спад быстрее, чем в NORMAL).
+    Шаг = доля оставшегося расстояния (gain), но не больше скорости режима — подъём ровный, у цели плавный.
+    Шум детерминирован: одинаковые seed и последовательность режимов дают одинаковый ряд.
+    """
+
+    level_cm: float = DEFAULT_BASE_CM
+    seed: int | None = DEFAULT_SEED
+    rising_peak_cm: float = DEFAULT_RISING_PEAK_CM
+    danger_peak_cm: float = DEFAULT_DANGER_PEAK_CM
+    # Наибольшая скорость изменения за одно показание, см.
+    normal_step: float = 4.0
     rising_step: float = 6.0
     danger_step: float = 18.0
-    falling_step: float = 10.0
+    falling_step: float = 12.0
+    gain: float = 0.25
     noise_cm: float = 0.6
     _rng: random.Random = field(init=False, repr=False)
     _base: float = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
+        if not (MIN_CM <= self.level_cm <= MAX_CM):
+            raise ValueError(f"начальный уровень вне диапазона {MIN_CM:g}–{MAX_CM:g} см")
+        if not (self.level_cm < self.rising_peak_cm <= self.danger_peak_cm <= MAX_CM):
+            raise ValueError("нужно: начальный уровень < пик RISING <= пик DANGER <= 1500 см")
         self._rng = random.Random(self.seed)
         self._base = self.level_cm
 
-    def step(self, mode: str) -> float:
-        if mode not in MODES:
-            raise ValueError(f"неизвестный режим: {mode}")
-        noise = self._rng.uniform(-self.noise_cm, self.noise_cm)
+    @property
+    def base_cm(self) -> float:
+        return self._base
+
+    def target(self, mode: str) -> tuple[float, float]:
+        """Цель и наибольший шаг режима."""
         if mode == "NORMAL":
-            # Стабильный уровень: небольшое колебание без накопления (держится у текущего уровня).
-            value = self.level_cm + noise
-        elif mode == "RISING":
-            self.level_cm += self.rising_step
-            value = self.level_cm + noise
-        elif mode == "DANGER":
-            self.level_cm += self.danger_step
-            value = self.level_cm + noise
-        else:  # FALLING
-            self.level_cm = max(self._base - 40.0, self.level_cm - self.falling_step)
-            value = self.level_cm + noise
+            return self._base, self.normal_step
+        if mode == "RISING":
+            return self.rising_peak_cm, self.rising_step
+        if mode == "DANGER":
+            return self.danger_peak_cm, self.danger_step
+        if mode == "FALLING":
+            return self._base, self.falling_step
+        raise ValueError(f"неизвестный режим: {mode}")
+
+    def step(self, mode: str) -> float:
+        goal, max_step = self.target(mode)
+        delta = goal - self.level_cm
+        move = min(max_step, abs(delta) * self.gain)
+        if abs(delta) < 0.05:
+            self.level_cm = goal
+        else:
+            self.level_cm += move if delta > 0 else -move
         self.level_cm = min(MAX_CM, max(MIN_CM, self.level_cm))
-        return round(min(MAX_CM, max(MIN_CM, value)), 1)
+        noise = self._rng.uniform(-self.noise_cm, self.noise_cm)
+        return round(min(MAX_CM, max(MIN_CM, self.level_cm + noise)), 1)
 
 
 # ── Сообщение ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -148,20 +182,44 @@ class OutBuffer:
             return len(self._items)
 
 
+# ── Один экземпляр датчика на устройство ────────────────────────────────────────────────────────────────────
+def acquire_single_instance(path: Path):
+    """Блокировка файла: второй датчик с тем же устройством не запустится (иначе два потока показаний смешались бы).
+    Блокировку снимает операционная система, когда процесс завершается, даже аварийно. None — уже запущен."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = open(path, "a+")
+    try:
+        if os.name == "nt":
+            import msvcrt
+
+            handle.seek(0)
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        handle.close()
+        return None
+    return handle
+
+
 # ── Программа ───────────────────────────────────────────────────────────────────────────────────────────────
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     root = Path(__file__).resolve().parents[2]
     p = argparse.ArgumentParser(description="QORGAN: программный датчик уровня воды (MQTT)")
     p.add_argument("--mode", choices=MODES, default="NORMAL", type=str.upper, help="начальный режим")
     p.add_argument("--interval", type=float, default=2.0, help="секунд между показаниями (в QORGAN 1 ч модели = 2 с)")
-    p.add_argument("--initial", type=float, default=320.0, help="начальный уровень, см")
+    p.add_argument("--initial", type=float, default=DEFAULT_BASE_CM, help="начальный (нормальный) уровень, см; к нему возвращают N и F")
+    p.add_argument("--rising-peak", type=float, default=DEFAULT_RISING_PEAK_CM, help="учебный пик режима RISING, см")
+    p.add_argument("--danger-peak", type=float, default=DEFAULT_DANGER_PEAK_CM, help="учебный пик режима DANGER, см")
     p.add_argument("--env", type=Path, default=root / ".env", help="файл настроек QORGAN")
     p.add_argument("--device-id", help="идентификатор устройства (по умолчанию SENSOR_DEVICE_ID из .env)")
     p.add_argument("--station", help="код станции (по умолчанию SENSOR_STATION из .env)")
     p.add_argument("--token", help="пароль устройства (по умолчанию SENSOR_TOKEN из .env)")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, help="порт брокера (по умолчанию MQTT_PORT из .env или 1883)")
-    p.add_argument("--seed", type=int, help="для повторяемого шума")
+    p.add_argument("--seed", type=int, default=DEFAULT_SEED, help="зерно шума: одинаковое зерно и режимы — одинаковый ряд")
     p.add_argument("--count", type=int, help="остановиться после N показаний (для проверок)")
     p.add_argument("--no-keyboard", action="store_true", help="не читать команды с клавиатуры")
     return p.parse_args(argv)
@@ -177,6 +235,11 @@ def main(argv: list[str] | None = None) -> int:
     if not token or token == "replace-me":
         print("Нет пароля датчика (SENSOR_TOKEN в .env). Выполните в папке проекта: npm run setup")
         return 2
+    lock = acquire_single_instance(Path(__file__).resolve().parent / f".sensor-{device_id}.lock")
+    if lock is None:
+        print(f"Датчик {device_id} уже запущен в другом окне. Второй экземпляр не нужен — пользуйтесь открытым окном")
+        print("(или закройте его: Q + Enter) и запустите снова.")
+        return 3
     try:
         import paho.mqtt.client as mqtt  # type: ignore[import-not-found]
     except ImportError:
@@ -184,7 +247,11 @@ def main(argv: list[str] | None = None) -> int:
         print("или выполните: py -m pip install -r sensors/python/requirements.txt")
         return 2
 
-    model = WaterLevelModel(level_cm=args.initial, seed=args.seed)
+    try:
+        model = WaterLevelModel(level_cm=args.initial, seed=args.seed, rising_peak_cm=args.rising_peak, danger_peak_cm=args.danger_peak)
+    except ValueError as error:
+        print(f"Неверные настройки уровней: {error}")
+        return 2
     boot_id = uuid.uuid4().hex[:12]
     state = {"mode": args.mode, "connected": False, "server": False, "stop": False, "seq": 0}
     buffer = OutBuffer()
@@ -272,12 +339,14 @@ def main(argv: list[str] | None = None) -> int:
                 return
             if key in MODE_KEYS:
                 state["mode"] = MODE_KEYS[key]
-                log(f"режим → {state['mode']}")
+                goal, _ = model.target(state["mode"])
+                log(f"режим → {state['mode']} (цель {goal:g} см)")
 
     print("=" * 72)
     print(f" QORGAN · программный датчик уровня воды · устройство {device_id} · станция {station}")
-    print(f" Брокер mqtt://{args.host}:{port} · показание каждые {args.interval:g} с · начальный уровень {args.initial:g} см")
-    print(" Команды: N — норма, R — подъём, D — опасный подъём, F — спад, Q — выход (буква + Enter)")
+    print(f" Брокер mqtt://{args.host}:{port} · показание каждые {args.interval:g} с")
+    print(f" Учебные уровни: норма {args.initial:g} см · подъём до {args.rising_peak:g} см · опасный пик {args.danger_peak:g} см")
+    print(" Команды: N — норма (возврат к начальному), R — подъём, D — опасный подъём, F — спад, Q — выход (буква + Enter)")
     print("=" * 72)
     if not args.no_keyboard:
         threading.Thread(target=keyboard, daemon=True).start()

@@ -141,8 +141,13 @@ export interface DeviceSummary {
   lastMode: string | null;
   lastResult: string | null;
   lastSeq: number | null;
+  /** За всё время (все прогоны). */
   accepted: number;
   rejected: number;
+  /** Текущий или последний прогон приёма датчиков: принято, повторы, отклонено с причинами. */
+  run: { runId: number; accepted: number; duplicates: number; rejected: number; reasons: Record<string, number> } | null;
+  /** Последнее показание относительно учебных порогов станции (считает сервер). */
+  lastLevel: 'NORMAL' | 'WARNING' | 'DANGER' | null;
 }
 
 // ── Администрирование (apps/server/src/routes/admin.ts) ──

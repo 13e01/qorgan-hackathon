@@ -269,4 +269,20 @@ CREATE TABLE devices (
 CREATE INDEX devices_station ON devices(station_id);
 `,
   },
+  {
+    // Счётчики сообщений устройства по прогонам и причинам: каждое сообщение учитывается (журнал device_log
+    // пишется не чаще раза в 10 с на причину и разбивку не сохраняет). run_id = 0 — прогона приёма не было.
+    version: 4,
+    name: 'device_run_results',
+    sql: `
+CREATE TABLE device_run_results (
+  device_id  INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
+  run_id     INTEGER NOT NULL DEFAULT 0,
+  result     TEXT    NOT NULL,
+  count      INTEGER NOT NULL DEFAULT 0,
+  last_at    TEXT    NOT NULL,
+  PRIMARY KEY (device_id, run_id, result)
+);
+`,
+  },
 ];

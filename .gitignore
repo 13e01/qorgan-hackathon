@@ -9,3 +9,6 @@ data/
 !.env.production.example
 .venv/
 __pycache__/
+
+# Блокировка «один экземпляр» Python-датчика
+sensors/python/.sensor-*.lock

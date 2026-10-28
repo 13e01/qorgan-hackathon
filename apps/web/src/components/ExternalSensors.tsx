@@ -54,21 +54,91 @@ function DeviceRow({ d }: { d: DeviceSummary }) {
           <dd>{st?.latest.water_level?.source === 'device' ? <RiskBadge risk={st.risk.risk} /> : <span className="faint">—</span>}</dd>
         </div>
         <div>
-          <dt>{t('ext.counts')}</dt>
+          <dt>{d.run ? t('ext.countsRun', { id: d.run.runId }) : t('ext.counts')}</dt>
           <dd className="num">
-            {d.accepted} / <span className={d.rejected ? 'danger-text' : ''}>{d.rejected}</span>
+            {d.run ? d.run.accepted : d.accepted} / <span className={(d.run ? d.run.rejected : d.rejected) ? 'danger-text' : ''}>{d.run ? d.run.rejected : d.rejected}</span>
             {d.lastResult && d.lastResult !== 'ACCEPTED' && <span className="faint"> · {t(`ext.result.${d.lastResult}` as MessageKey)}</span>}
           </dd>
         </div>
       </dl>
+      <p className="faint note device-totals">
+        {d.run && d.run.duplicates > 0 && <>{t('ext.duplicates', { n: d.run.duplicates })} · </>}
+        {d.run &&
+          Object.entries(d.run.reasons).map(([code, n]) => (
+            <span key={code} className="reason-count">
+              {t(`ext.result.${code}` as MessageKey)}: {n} ·{' '}
+            </span>
+          ))}
+        {t('ext.totals', { a: d.accepted, r: d.rejected })}
+      </p>
       {d.mqttStatus === 'offline' && <p className="faint note">{t('ext.lwtOffline')}</p>}
+    </div>
+  );
+}
+
+/**
+ * «Подготовить чистое демо»: чек-лист перед новым прогоном приёма датчиков. Всё — по данным снимка сервера.
+ * Ничего не удаляет: предыдущий прогон останавливается только по кнопке с подтверждением и остаётся в истории;
+ * новый прогон начинается без измерений, предупреждений и счётчиков.
+ */
+function DemoPrep() {
+  const { t } = useI18n();
+  const { live, simBusy, simCommand } = useStore();
+  const snap = live.snapshot;
+  const sim = snap?.simulation;
+  const run = sim?.run ?? null;
+  const liveRun = sim && (sim.state === 'RUNNING' || sim.state === 'PAUSED' || sim.state === 'CREATED') ? run : null;
+  const device = snap?.devices?.[0];
+  const brokerOk = snap?.mqtt === 'connected';
+  const sensorOk = device?.mqttStatus === 'online';
+  const level = device?.lastLevel ?? null;
+
+  // Выполненный пункт — утверждение с галочкой; невыполненный — что сделать (а не ложное утверждение).
+  const step = (ok: boolean | null, label: string, hint: string | null) => (
+    <li className={`prep-step ${ok === null ? 'unknown' : ok ? 'ok' : 'todo'}`}>
+      <Icon name={ok ? 'check' : 'info'} />
+      <span>{ok || !hint ? label : hint}</span>
+    </li>
+  );
+
+  return (
+    <div className="demo-prep">
+      <h3>{t('prep.title')}</h3>
+      <p className="muted">{t('prep.lead')}</p>
+      <ol className="prep-steps">
+        {step(!liveRun, t('prep.step.stopped'), liveRun ? t('prep.step.stoppedNo', { id: liveRun.id }) : null)}
+        {step(brokerOk, t('prep.step.broker'), t('prep.step.brokerNo'))}
+        {step(sensorOk, t('prep.step.sensor'), t('prep.step.sensorNo'))}
+        {step(level === null ? null : level === 'NORMAL', t('prep.step.level'), level === null ? t('prep.step.levelUnknown') : t('prep.step.levelNo'))}
+      </ol>
+      <div className="prep-actions">
+        {liveRun ? (
+          <button
+            className="btn danger"
+            disabled={simBusy}
+            onClick={() => {
+              if (!window.confirm(t('prep.stopConfirm', { id: liveRun.id }))) return;
+              void simCommand(() => api.post('/api/simulation/stop'));
+            }}
+          >
+            <Icon name="stop" />
+            {t('prep.stop', { id: liveRun.id })}
+          </button>
+        ) : (
+          <button className="btn primary lg" disabled={simBusy} onClick={() => void simCommand(() => api.post('/api/simulation/external/start', { hourMs: HOUR_MS }))}>
+            <Icon name="signal" />
+            {t('prep.start')}
+          </button>
+        )}
+      </div>
+      <p className="faint note">{t('prep.hint')}</p>
     </div>
   );
 }
 
 export function ExternalSensors({ compact = false }: { compact?: boolean }) {
   const { t, lang } = useI18n();
-  const { live, canControl, simBusy, simCommand } = useStore();
+  const { live, canControl } = useStore();
   const snap = live.snapshot;
   const devices = snap?.devices ?? [];
   const sim = snap?.simulation;
@@ -101,12 +171,7 @@ export function ExternalSensors({ compact = false }: { compact?: boolean }) {
         )}
       </div>
 
-      {!compact && canControl && !liveRun && (
-        <button className="btn primary" disabled={simBusy} onClick={() => void simCommand(() => api.post('/api/simulation/external/start', { hourMs: HOUR_MS }))}>
-          <Icon name="signal" />
-          {t('ext.start')}
-        </button>
-      )}
+      {!compact && canControl && <DemoPrep />}
       {!compact && source === 'INTERNAL_SIMULATION' && liveRun && <div className="callout warn">{t('ext.conflict')}</div>}
 
       {devices.length === 0 ? (

@@ -189,6 +189,7 @@ export function deleteRunData(db: Db, runId: number): void {
   db.prepare('DELETE FROM risk_assessments WHERE run_id = ?').run(runId);
   db.prepare('DELETE FROM measurements WHERE run_id = ?').run(runId);
   db.prepare('DELETE FROM sim_interventions WHERE run_id = ?').run(runId);
+  db.prepare('DELETE FROM device_run_results WHERE run_id = ?').run(runId);
   db.prepare('UPDATE sim_control SET run_id = NULL WHERE run_id = ?').run(runId);
   db.prepare('DELETE FROM sim_runs WHERE id = ?').run(runId);
 }

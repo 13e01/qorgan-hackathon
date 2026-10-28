@@ -10,7 +10,7 @@ import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sensor import MODES, OutBuffer, WaterLevelModel, build_message, can_send, parse_args, read_env, status_topic, telemetry_topic
+from sensor import MODES, OutBuffer, acquire_single_instance, WaterLevelModel, build_message, can_send, parse_args, read_env, status_topic, telemetry_topic
 
 
 class ModelTest(unittest.TestCase):
@@ -43,11 +43,59 @@ class ModelTest(unittest.TestCase):
         self.assertGreaterEqual(m.step("FALLING"), 280 - 1)
 
     def test_bounds_and_unknown_mode(self):
-        m = WaterLevelModel(level_cm=1490, seed=5)
-        for _ in range(10):
+        m = WaterLevelModel(level_cm=1400, seed=5, rising_peak_cm=1450, danger_peak_cm=1500)
+        for _ in range(50):
             self.assertLessEqual(m.step("DANGER"), 1500)
         with self.assertRaises(ValueError):
             m.step("FLOOD")
+
+    def test_danger_has_peak_no_endless_growth(self):
+        # Ручная проверка 28.10: за ~10 минут DANGER уровень дошёл до 14,54 м. Теперь он держится у учебного пика.
+        m = WaterLevelModel(level_cm=320, seed=6)
+        values = [m.step("DANGER") for _ in range(300)]
+        self.assertLessEqual(max(values), 650 + 0.6)
+        self.assertAlmostEqual(values[-1], 650, delta=0.7)
+        # Плавно: у пика шаг меньше, чем в начале подъёма.
+        self.assertGreater(values[5] - values[4], 15)
+        self.assertLess(values[25] - values[24], 5)
+
+    def test_rising_stops_at_its_peak(self):
+        m = WaterLevelModel(level_cm=320, seed=7)
+        values = [m.step("RISING") for _ in range(300)]
+        self.assertAlmostEqual(values[-1], 500, delta=0.7)
+        self.assertLessEqual(max(values), 500 + 0.6)
+
+    def test_normal_and_falling_return_to_initial_level(self):
+        for mode, max_steps in (("FALLING", 60), ("NORMAL", 150)):
+            m = WaterLevelModel(level_cm=320, seed=8)
+            for _ in range(60):
+                m.step("DANGER")
+            self.assertGreater(m.level_cm, 600)
+            for _ in range(max_steps):
+                m.step(mode)
+            self.assertAlmostEqual(m.level_cm, 320, delta=1.0, msg=mode)
+        # Спад быстрее, чем возврат в режиме NORMAL.
+        fall, norm = WaterLevelModel(level_cm=320, seed=9), WaterLevelModel(level_cm=320, seed=9)
+        for model in (fall, norm):
+            for _ in range(60):
+                model.step("DANGER")
+        for _ in range(10):
+            fall.step("FALLING")
+            norm.step("NORMAL")
+        self.assertLess(fall.level_cm, norm.level_cm)
+
+    def test_same_seed_and_modes_reproducible(self):
+        plan = ["NORMAL"] * 5 + ["RISING"] * 10 + ["DANGER"] * 20 + ["FALLING"] * 20 + ["NORMAL"] * 10
+        a, b = WaterLevelModel(seed=11), WaterLevelModel(seed=11)
+        self.assertEqual([a.step(x) for x in plan], [b.step(x) for x in plan])
+
+    def test_invalid_levels_rejected(self):
+        with self.assertRaises(ValueError):
+            WaterLevelModel(level_cm=600, danger_peak_cm=650)  # начальный выше пика RISING
+        with self.assertRaises(ValueError):
+            WaterLevelModel(level_cm=320, rising_peak_cm=700, danger_peak_cm=650)
+        with self.assertRaises(ValueError):
+            WaterLevelModel(level_cm=320, danger_peak_cm=2000)
 
 
 class MessageTest(unittest.TestCase):
@@ -109,12 +157,25 @@ class SupportTest(unittest.TestCase):
         self.assertFalse(can_send(False, True))
         self.assertFalse(can_send(False, False))
 
+    def test_single_instance_lock(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / ".sensor-X.lock"
+            first = acquire_single_instance(path)
+            self.assertIsNotNone(first)
+            self.assertIsNone(acquire_single_instance(path))  # второй экземпляр не запускается
+            first.close()  # процесс датчика завершился — блокировка снята
+            again = acquire_single_instance(path)
+            self.assertIsNotNone(again)
+            again.close()
+
     def test_args(self):
         a = parse_args(["--mode", "danger", "--interval", "1"])
         self.assertEqual(a.mode, "DANGER")
         self.assertEqual(a.interval, 1.0)
         self.assertIn("NORMAL", MODES)
         self.assertTrue(re.match(r".*\.env$", str(a.env)))
+        b = parse_args(["--rising-peak", "450", "--danger-peak", "600"])
+        self.assertEqual((b.initial, b.rising_peak, b.danger_peak, b.seed), (320.0, 450.0, 600.0, 1))
 
 
 if __name__ == "__main__":

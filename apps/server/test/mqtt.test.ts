@@ -168,6 +168,65 @@ describe('MQTT-адаптер (логика, управляемые часы)', 
     expect(stop.body.state).toBe('STOPPED');
   });
 
+  it('каждое сообщение учитывается по прогону и причине, даже когда журнал device_log прорежен (раз в 10 с)', async () => {
+    const { s, clock, send } = await setup();
+    // До включения приёма: отклонения попадают в «прогон 0», а не в будущий прогон.
+    for (let i = 0; i < 3; i += 1) expect(await send()).toBe('NO_EXTERNAL_RUN');
+    const { body } = await s.post('/api/simulation/external/start', { hourMs: HOUR_MS });
+    const runId = body.run.id;
+    let dev = buildSnapshot(s.db, s.app.simulation, clock.now().toISOString()).devices[0]!;
+    expect(dev.run).toEqual({ runId, accepted: 0, duplicates: 0, rejected: 0, reasons: {} });
+    expect(dev.rejected).toBe(3);
+    expect(await send({ seq: 100, bootId: 'boot-run' })).toBe('ACCEPTED');
+    expect(await send({ seq: 100, bootId: 'boot-run' })).toBe('DUPLICATE');
+    for (let i = 0; i < 4; i += 1) expect(await send({ stationId: 'QRG-01' })).toBe('STATION_MISMATCH');
+    expect(await send({ timestamp: new Date(clock.now().getTime() + 120_000).toISOString() })).toBe('FUTURE');
+    dev = buildSnapshot(s.db, s.app.simulation, clock.now().toISOString()).devices[0]!;
+    expect(dev.run).toEqual({ runId, accepted: 1, duplicates: 1, rejected: 5, reasons: { STATION_MISMATCH: 4, FUTURE: 1 } });
+    expect(dev.accepted).toBe(1);
+    expect(dev.rejected).toBe(8);
+    // Журнал прорежен (одна запись на причину за 10 с), а счётчик по причинам — полный.
+    expect(s.db.prepare("SELECT COUNT(*) AS n FROM device_log WHERE code = 'MQTT_STATION_MISMATCH'").get()?.n).toBe(1);
+    expect(s.db.prepare('SELECT SUM(count) AS n FROM device_run_results WHERE run_id = 0').get()?.n).toBe(3);
+  });
+
+  it('чистый демо-прогон: после остановки новый прогон начинается без измерений, предупреждений и отклонений; старый не меняется', async () => {
+    const { s, clock, send } = await setup();
+    const first = (await s.post('/api/simulation/external/start', { hourMs: HOUR_MS })).body.run.id;
+    let level = 320;
+    for (let i = 0; i < 22; i += 1) {
+      level += i < 6 ? 0 : 18;
+      expect(await send({ value: level, mode: i < 6 ? 'NORMAL' : 'DANGER' })).toBe('ACCEPTED');
+      clock.advance(HOUR_MS);
+    }
+    expect(await send({ stationId: 'QRG-01' })).toBe('STATION_MISMATCH');
+    const oldMeasurements = deviceRows(s.db, first).length;
+    const oldAlerts = (await s.get(`/api/alerts?runId=${first}`)).body.items.length;
+    expect(oldAlerts).toBeGreaterThan(0);
+    let snap = buildSnapshot(s.db, s.app.simulation, clock.now().toISOString());
+    expect(snap.devices[0]!.lastLevel).toBe('DANGER');
+
+    // Пока прогон идёт, новый не создаётся (ничего не удаляется незаметно).
+    expect((await s.post('/api/simulation/external/start', { hourMs: HOUR_MS })).body.error.code).toBe('ACTIVE_RUN_EXISTS');
+    expect((await s.post('/api/simulation/stop')).body.state).toBe('STOPPED');
+    const second = (await s.post('/api/simulation/external/start', { hourMs: HOUR_MS })).body.run.id;
+    expect(second).not.toBe(first);
+    snap = buildSnapshot(s.db, s.app.simulation, clock.now().toISOString());
+    expect(snap.alerts).toMatchObject({ runId: second, active: [], unhandled: 0 });
+    expect(snap.devices[0]!.run).toEqual({ runId: second, accepted: 0, duplicates: 0, rejected: 0, reasons: {} });
+    expect(snap.stations.find((x) => x.code === 'QRG-03')!.latest.water_level).toBeUndefined();
+
+    // Датчик вернулся к норме — в новом прогоне только новые измерения, первое — тик 0.
+    expect(await send({ value: 321, mode: 'NORMAL' })).toBe('ACCEPTED');
+    expect(deviceRows(s.db, second).map((r) => [r.tick, r.value])).toEqual([[0, 321]]);
+    snap = buildSnapshot(s.db, s.app.simulation, clock.now().toISOString());
+    expect(snap.devices[0]!.lastLevel).toBe('NORMAL');
+    expect(snap.devices[0]!.run).toMatchObject({ runId: second, accepted: 1, rejected: 0 });
+    // Старый прогон остался в истории без изменений.
+    expect(deviceRows(s.db, first)).toHaveLength(oldMeasurements);
+    expect((await s.get(`/api/alerts?runId=${first}`)).body.items).toHaveLength(oldAlerts);
+  });
+
   it('администратор: регистрирует устройство (токен один раз, в БД — хеш), отключает — показания отклоняются', async () => {
     const { s, send } = await setup();
     const req = (method: 'GET' | 'POST' | 'PATCH', url: string, payload?: object) =>
