@@ -10,12 +10,17 @@
     "typecheck": "tsc -p tsconfig.json",
     "db:reset": "tsx src/db/cli.ts reset",
     "db:backup": "tsx src/db/cli.ts backup",
-    "db:fixture": "tsx src/db/cli.ts fixture"
+    "db:fixture": "tsx src/db/cli.ts fixture",
+    "demo:wave": "tsx src/demo/wave.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.5",
+    "@fastify/websocket": "^11.3.4",
     "@qorgan/shared": "^0.1.0",
     "fastify": "^5.12.7",
     "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.2"
   }
 }

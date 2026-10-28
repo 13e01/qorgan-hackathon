@@ -32,8 +32,8 @@ export function transaction<T>(db: Db, fn: () => T): T {
   }
 }
 
-/** Применяет недостающие миграции. Возвращает текущую версию схемы. */
-export function migrate(db: Db): number {
+/** Применяет недостающие миграции (до версии `target` включительно, по умолчанию — все). Возвращает текущую версию схемы. */
+export function migrate(db: Db, target = Number.POSITIVE_INFINITY): number {
   db.exec(`CREATE TABLE IF NOT EXISTS schema_migrations (
     version    INTEGER PRIMARY KEY,
     name       TEXT NOT NULL,
@@ -43,7 +43,7 @@ export function migrate(db: Db): number {
     db.prepare('SELECT version FROM schema_migrations').all().map((row) => Number(row.version)),
   );
   for (const migration of MIGRATIONS) {
-    if (applied.has(migration.version)) continue;
+    if (applied.has(migration.version) || migration.version > target) continue;
     transaction(db, () => {
       db.exec(migration.sql);
       db.prepare('INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)').run(

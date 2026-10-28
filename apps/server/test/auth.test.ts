@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { requireRole } from '../src/auth/plugin';
+import { MIGRATIONS } from '../src/db/migrations';
 import { hashPassword, verifyPassword } from '../src/auth/password';
 import { login, testApp } from './helpers';
 
@@ -19,7 +20,7 @@ describe('GET /api/health', () => {
     const { app } = await testApp();
     const res = await app.inject({ method: 'GET', url: '/api/health' });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ status: 'ok', db: { schemaVersion: 1, stations: 4 } });
+    expect(res.json()).toMatchObject({ status: 'ok', db: { schemaVersion: MIGRATIONS.at(-1)?.version, stations: 4 } });
   });
 });
 

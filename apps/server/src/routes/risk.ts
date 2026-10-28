@@ -3,13 +3,14 @@
 //   GET /api/stations/:id/risk/explanation  — факторы, вклад, причины, качество данных (гость)
 //   GET /api/stations/:id/forecast          — прогноз на 3 ч и время до порога с диапазонами (оператор)
 // :id — числовой id или код станции (QRG-01). Параметры runId и at (оценка на прошлый момент) — только после входа.
+// Каждый ответ содержит context: режим данных (LIVE / PAUSED / HISTORICAL / NO_DATA), виртуальное и реальное время.
 
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { requireRole } from '../auth/plugin';
 import type { Db } from '../db/connection';
 import { AppError, parse } from '../errors';
-import { evaluateStation, findStation, runExists, type StationEvaluation } from '../risk/service';
+import { createEvaluator, findStation, runExists, type EvaluationContext, type StationEvaluation } from '../risk/service';
 
 const paramsSchema = z.object({ id: z.string().min(1).max(32) });
 const querySchema = z.object({
@@ -17,9 +18,9 @@ const querySchema = z.object({
   at: z.iso.datetime({ offset: true }).optional(),
 });
 
-export function riskRoutes(db: Db) {
+export function riskRoutes(db: Db, now: () => Date) {
   return async (app: FastifyInstance) => {
-    const evaluate = (request: FastifyRequest): StationEvaluation => {
+    const evaluate = (request: FastifyRequest): StationEvaluation & { context: EvaluationContext } => {
       const { id } = parse(paramsSchema, request.params);
       const query = parse(querySchema, request.query);
       if ((query.runId !== undefined || query.at !== undefined) && !request.user) {
@@ -30,14 +31,16 @@ export function riskRoutes(db: Db) {
       if (query.runId !== undefined && !runExists(db, query.runId)) {
         throw new AppError(404, 'RUN_NOT_FOUND', `Прогон не найден: ${query.runId}`);
       }
-      return evaluateStation(db, station.id, { runId: query.runId, at: query.at });
+      const evaluator = createEvaluator(db, { runId: query.runId, at: query.at, computedAt: now().toISOString() });
+      return { ...evaluator.evaluate(station.id), context: evaluator.context() };
     };
 
     app.get('/api/stations/:id/risk', async (request) => {
-      const { station, runId, assessment: a } = evaluate(request);
+      const { station, runId, assessment: a, context } = evaluate(request);
       return {
         station,
         runId,
+        context,
         model: a.model,
         asOf: a.asOf,
         computedAt: a.computedAt,
@@ -52,10 +55,11 @@ export function riskRoutes(db: Db) {
     });
 
     app.get('/api/stations/:id/risk/explanation', async (request) => {
-      const { station, runId, assessment: a } = evaluate(request);
+      const { station, runId, assessment: a, context } = evaluate(request);
       return {
         station,
         runId,
+        context,
         model: a.model,
         asOf: a.asOf,
         computedAt: a.computedAt,
@@ -71,10 +75,11 @@ export function riskRoutes(db: Db) {
     });
 
     app.get('/api/stations/:id/forecast', { preHandler: requireRole('operator') }, async (request) => {
-      const { station, runId, assessment: a } = evaluate(request);
+      const { station, runId, assessment: a, context } = evaluate(request);
       return {
         station,
         runId,
+        context,
         model: a.model,
         asOf: a.asOf,
         computedAt: a.computedAt,

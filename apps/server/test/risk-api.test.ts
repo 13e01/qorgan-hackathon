@@ -53,7 +53,9 @@ describe('GET /api/stations/:id/risk', () => {
     const { app } = await fixtureApp();
     const byId = (await get(app, '/api/stations/1/risk')).json();
     const byCode = (await get(app, '/api/stations/qrg-01/risk')).json();
-    expect({ ...byId, computedAt: null }).toEqual({ ...byCode, computedAt: null });
+    // computedAt и context.realTime — реальное время ответа, у двух запросов оно может отличаться.
+    const strip = (b: Record<string, any>) => ({ ...b, computedAt: null, context: { ...b.context, realTime: null } });
+    expect(strip(byId)).toEqual(strip(byCode));
     expect(byId.topReasons).toEqual([
       { code: 'LEVEL_ABOVE_DANGER', params: { levelCm: 580, dangerCm: 550 } },
       { code: 'RISING', params: { rateCmH: 20 } },

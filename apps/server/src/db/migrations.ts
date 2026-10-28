@@ -188,4 +188,55 @@ CREATE TABLE audit_log (
 );
 `,
   },
+  {
+    // T3: симулятор паводковой волны. Только добавление столбцов/таблиц; данные не удаляются.
+    // sim_control пересоздаётся (одна служебная строка, на неё никто не ссылается): статус и скорость
+    // теперь хранятся у каждого прогона в sim_runs, а sim_control только указывает активный прогон.
+    version: 2,
+    name: 'simulation',
+    sql: `
+ALTER TABLE stations ADD COLUMN response_hours INTEGER NOT NULL DEFAULT 1 CHECK (response_hours BETWEEN 1 AND 24);
+UPDATE stations SET response_hours = 6 WHERE code IN ('QRG-02', 'QRG-03');
+UPDATE stations SET response_hours = 3 WHERE code = 'QRG-04';
+
+ALTER TABLE sim_runs ADD COLUMN status TEXT NOT NULL DEFAULT 'COMPLETED'
+  CHECK (status IN ('CREATED', 'RUNNING', 'PAUSED', 'COMPLETED', 'STOPPED'));
+ALTER TABLE sim_runs ADD COLUMN current_tick INTEGER CHECK (current_tick IS NULL OR current_tick >= 0);
+ALTER TABLE sim_runs ADD COLUMN total_ticks INTEGER CHECK (total_ticks IS NULL OR total_ticks > 0);
+ALTER TABLE sim_runs ADD COLUMN step_minutes INTEGER NOT NULL DEFAULT 60 CHECK (step_minutes > 0);
+ALTER TABLE sim_runs ADD COLUMN stopped_at TEXT;
+ALTER TABLE sim_runs ADD COLUMN last_error TEXT;
+ALTER TABLE sim_runs ADD COLUMN created_by INTEGER REFERENCES users(id);
+CREATE INDEX sim_runs_status ON sim_runs(status);
+
+CREATE TABLE sim_control_v2 (
+  id         INTEGER PRIMARY KEY CHECK (id = 1),
+  run_id     INTEGER REFERENCES sim_runs(id),
+  updated_at TEXT    NOT NULL
+);
+INSERT INTO sim_control_v2 (id, run_id, updated_at) SELECT id, NULL, updated_at FROM sim_control;
+DROP TABLE sim_control;
+ALTER TABLE sim_control_v2 RENAME TO sim_control;
+
+CREATE TABLE sim_interventions (
+  id             INTEGER PRIMARY KEY,
+  run_id         INTEGER NOT NULL REFERENCES sim_runs(id) ON DELETE CASCADE,
+  effective_tick INTEGER NOT NULL CHECK (effective_tick >= 0),
+  type           TEXT    NOT NULL CHECK (type IN ('LEVEL_SHIFT', 'RISE_RATE', 'MANUAL_READING')),
+  station_id     INTEGER NOT NULL REFERENCES stations(id),
+  parameter_code TEXT    REFERENCES parameters(code),
+  value          REAL    NOT NULL,
+  duration_h     REAL    CHECK (duration_h IS NULL OR duration_h > 0),
+  user_id        INTEGER REFERENCES users(id),
+  created_at     TEXT    NOT NULL,
+  CHECK ((type = 'MANUAL_READING') = (parameter_code IS NOT NULL))
+);
+CREATE INDEX sim_interventions_run ON sim_interventions(run_id, effective_tick);
+CREATE UNIQUE INDEX one_manual_reading ON sim_interventions(run_id, station_id, parameter_code, effective_tick)
+  WHERE type = 'MANUAL_READING';
+
+ALTER TABLE risk_assessments ADD COLUMN assessment_json TEXT;
+CREATE INDEX measurements_run_tick ON measurements(run_id, tick);
+`,
+  },
 ];

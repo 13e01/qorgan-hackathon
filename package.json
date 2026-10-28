@@ -19,7 +19,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "db:reset": "npm run db:reset -w @qorgan/server",
     "db:backup": "npm run db:backup -w @qorgan/server",
-    "db:fixture": "npm run db:fixture -w @qorgan/server"
+    "db:fixture": "npm run db:fixture -w @qorgan/server",
+    "demo:wave": "npm run demo:wave -w @qorgan/server --"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

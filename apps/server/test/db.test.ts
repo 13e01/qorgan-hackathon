@@ -87,7 +87,8 @@ describe('TC-D02 начальные данные', () => {
     expect(Number(db.prepare('SELECT COUNT(*) AS n FROM parameters').get()?.n)).toBe(PARAMETERS.length);
     const config = db.prepare('SELECT json, version FROM risk_config WHERE id = 1').get();
     expect(JSON.parse(String(config?.json))).toEqual(DEFAULT_RISK_CONFIG);
-    expect(db.prepare('SELECT status FROM sim_control WHERE id = 1').get()?.status).toBe('IDLE');
+    // Симулятор в состоянии IDLE: активного прогона нет (статус хранится у прогона в sim_runs, миграция v2).
+    expect(db.prepare('SELECT run_id FROM sim_control WHERE id = 1').get()?.run_id).toBeNull();
     const users = db.prepare('SELECT username, role, password_hash FROM users ORDER BY id').all();
     expect(users.map((u) => [u.username, u.role])).toEqual([['operator', 'operator'], ['admin', 'admin']]);
     for (const u of users) {
