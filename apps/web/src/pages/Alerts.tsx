@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import type { AlertItem, AlertStatus } from '../api/types';
 import { AlertCard } from '../components/AlertItem';
-import { Segmented } from '../components/ui';
+import { PageHeader, Segmented } from '../components/ui';
 import { useI18n } from '../i18n';
 import { useStore } from '../state/store';
 
@@ -59,26 +59,28 @@ export function Alerts() {
   const { items: fetched, reload, error } = useAlertList(query, user !== null);
   const items = user ? fetched : (live.snapshot?.alerts?.active ?? null);
   const summary = live.snapshot?.alerts;
+  const highActive = summary?.active.filter((a) => a.severity === 'HIGH').length ?? 0;
 
   return (
     <div className="page-stack">
+      <PageHeader title={t('alerts.title')} lead={t('alerts.hint')} />
+      {summary && (
+        <ul className="stat-row" aria-label={t('alerts.summary')}>
+          <li className={`stat${highActive > 0 ? ' tone-danger' : ''}`}>
+            <b className="stat-value num">{highActive}</b>
+            <span className="stat-label">{t('alerts.activeCount')} · {t('alerts.highCount')}</span>
+          </li>
+          <li className={`stat${summary.active.length > 0 ? ' tone-warn' : ''}`}>
+            <b className="stat-value num">{summary.active.length}</b>
+            <span className="stat-label">{t('alerts.activeCount')}</span>
+          </li>
+          <li className={`stat${summary.unhandled > 0 ? ' tone-accent' : ''}`}>
+            <b className="stat-value num">{summary.unhandled}</b>
+            <span className="stat-label">{t('alerts.unhandledCount')}</span>
+          </li>
+        </ul>
+      )}
       <section className="card">
-        <div className="card-head">
-          <div>
-            <h2>{t('alerts.title')}</h2>
-            <p className="muted">{t('alerts.hint')}</p>
-          </div>
-          {summary && (
-            <div className="alert-counters">
-              <span className="counter">
-                <b className="num">{summary.active.length}</b> {t('alerts.activeCount')}
-              </span>
-              <span className="counter">
-                <b className="num">{summary.unhandled}</b> {t('alerts.unhandledCount')}
-              </span>
-            </div>
-          )}
-        </div>
 
         {user ? (
           <div className="filters">

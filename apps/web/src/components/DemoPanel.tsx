@@ -5,6 +5,7 @@ import { useEffect, useRef } from 'react';
 import type { ScenarioId } from '../api/shared';
 import { useI18n } from '../i18n';
 import { DEMO_STAGES } from '../lib/demo';
+import { riverFlow } from '../lib/flow';
 import { levelView } from '../lib/level';
 import { useDemo } from '../state/demo';
 import { useStore } from '../state/store';
@@ -56,7 +57,8 @@ function ConflictDialog() {
   );
 }
 
-export function DemoPanel() {
+/** compact — вне главной панели: этап, сообщение и управление, без шагов и подробностей (карта и река — на главной). */
+export function DemoPanel({ compact = false }: { compact?: boolean }) {
   const { t, reason } = useI18n();
   const { live, stations, simBusy } = useStore();
   const { demo, finished, pause, resume, exit, replay } = useDemo();
@@ -95,29 +97,49 @@ export function DemoPanel() {
   const withData = (snap?.stations ?? []).filter((s) => levelView(s).measuredCm !== null);
   const danger = withData.filter((s) => s.risk.situation.localLevel === 'ABOVE_DANGER').length;
   const warning = withData.filter((s) => s.risk.situation.localLevel === 'ABOVE_WARNING').length;
+  // Факты для зрителя — только из снимка: число активных предупреждений и станция, к которой сервер видит угрозу сверху.
+  const activeAlerts = snap?.alerts?.active.length ?? 0;
+  const next = riverFlow(stations, snap ?? null).nodes.find((n) => n.next) ?? null;
 
   return (
-    <section className="demo-panel" aria-labelledby="demo-title" aria-live="polite">
+    <section className={`demo-panel stage-${demo.stage.stage}${compact ? ' is-compact' : ''}`} aria-labelledby="demo-title" aria-live="polite">
       <ConflictDialog />
       <div className="demo-head">
         <div className="demo-badge">
           <Icon name="sparkle" />
           <span id="demo-title">{t('demo.title')}</span>
         </div>
-        <span className="faint">{t('demo.step', { n: idx + 1, total: DEMO_STAGES.length })}</span>
+        <span className="demo-count num" aria-hidden="true">
+          <b>{String(idx + 1).padStart(2, '0')}</b> / {String(DEMO_STAGES.length).padStart(2, '0')}
+        </span>
+        <span className="visually-hidden">{t('demo.step', { n: idx + 1, total: DEMO_STAGES.length })}</span>
       </div>
       <ol className="demo-steps">
         {DEMO_STAGES.map((s, i) => (
           <li key={s} className={i < idx ? 'done' : i === idx ? 'current' : ''} aria-current={i === idx ? 'step' : undefined}>
             <span className="demo-step-bar" />
-            <span className="demo-step-label">{t(`demo.stage.${s}`)}</span>
+            <span className="demo-step-label">
+              <span className="demo-step-n num">{i + 1}</span>
+              {t(`demo.stage.${s}`)}
+            </span>
           </li>
         ))}
       </ol>
       <div className="demo-body">
-        <div className="demo-text">
+        {/* key — смена этапа заново проигрывает короткое появление заголовка и текста (не чаще раза за час модели). */}
+        <div className="demo-text" key={demo.stage.stage}>
           <h2 className="demo-stage">{t(`demo.stage.${demo.stage.stage}`)}</h2>
           <p className="demo-message">{message}</p>
+          <ul className="demo-facts">
+            <li className={`demo-fact${activeAlerts > 0 ? ' on' : ''}`}>
+              <Icon name="bell" />
+              {t('demo.facts.alerts', { n: activeAlerts })}
+            </li>
+            <li className={`demo-fact${next ? ' threat' : ''}`}>
+              <Icon name={next ? 'warning' : 'check'} />
+              {next ? t('demo.facts.next', { station: next.name }) : t('demo.facts.calm')}
+            </li>
+          </ul>
           {explainReasons.length > 0 && (
             <ul className="reasons">
               {explainReasons.map((r, i) => (

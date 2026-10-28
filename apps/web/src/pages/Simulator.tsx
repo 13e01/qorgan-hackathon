@@ -6,7 +6,7 @@ import { ExternalSensors } from '../components/ExternalSensors';
 import { InterventionForm } from '../components/InterventionForm';
 import { SimulationPanel } from '../components/SimulationPanel';
 import { StationList } from '../components/StationList';
-import { Disclosure } from '../components/ui';
+import { Disclosure, PageHeader } from '../components/ui';
 import { useI18n } from '../i18n';
 import { dateTime } from '../lib/format';
 import { useStore } from '../state/store';
@@ -65,6 +65,7 @@ export function Simulator() {
   const { canControl } = useStore();
   return (
     <div className="sim-page">
+      <PageHeader title={t('nav.simulator')} lead={t('sim.pageHint')} />
       <div className="sim-grid">
         <SimulationPanel />
         <StationList />

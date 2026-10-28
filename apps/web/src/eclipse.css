@@ -1,0 +1,1978 @@
+/* QORGAN ECLIPSE — слой компонентов «Живая река» поверх базовой системы styles.css.
+   Цвета — только токены из styles.css (обе темы). Анимации объясняют изменения и отключаются при prefers-reduced-motion.
+   Порядок: база → оболочка → поверхности → элементы → главная панель → карта → река → демо → предупреждения → страницы → движение → адаптивность. */
+
+/* ---------- База ---------- */
+body {
+  background: var(--bg-glow), var(--bg);
+  background-attachment: fixed;
+  font-family: var(--font);
+  font-optical-sizing: auto;
+  font-feature-settings: 'cv11', 'ss03';
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+.page-title,
+.dh-title,
+.demo-stage {
+  font-family: var(--font-display);
+}
+
+h2 {
+  letter-spacing: -0.014em;
+}
+
+::selection {
+  background: var(--accent-ring);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---------- Оболочка: стеклянная боковая панель с группами ---------- */
+.sidebar {
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border-right: 1px solid var(--glass-border);
+  box-shadow: var(--glass-highlight);
+  gap: var(--sp-5);
+  padding: var(--sp-4) var(--sp-3) var(--sp-3);
+}
+
+.brand-home {
+  display: inline-flex;
+  border-radius: 11px;
+  flex: none;
+}
+
+.logo {
+  width: 36px;
+  height: 36px;
+}
+
+.logo-bg {
+  fill: var(--text);
+}
+
+.logo-ring {
+  stroke: var(--bg);
+}
+
+.logo-river {
+  stroke: var(--accent);
+}
+
+:root[data-theme='dark'] .logo-bg {
+  fill: #e9f2fb;
+}
+
+:root[data-theme='dark'] .logo-ring {
+  stroke: #07090c;
+}
+
+:root[data-theme='dark'] .logo-river {
+  stroke: #1f86e0;
+}
+
+.brand-name {
+  font-family: var(--font-display);
+  font-weight: 760;
+  font-size: 17px;
+  letter-spacing: 0.17em;
+}
+
+.brand-sub {
+  margin-top: 2px;
+}
+
+.nav {
+  gap: var(--sp-4);
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-group-label {
+  padding: 0 var(--sp-3) 4px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.nav a {
+  min-height: 42px;
+  font-weight: 520;
+}
+
+.nav a .icon {
+  color: var(--text-3);
+  transition: color var(--dur-fast) var(--ease);
+}
+
+.nav a:hover .icon {
+  color: var(--text-2);
+}
+
+.nav a[aria-current='page'] {
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 620;
+}
+
+.nav a[aria-current='page'] .icon {
+  color: var(--accent);
+}
+
+/* Активный пункт — короткая полоса слева: читается без опоры на цвет фона. */
+.nav a[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  width: 3px;
+  height: 20px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+  transform: translateY(-50%);
+}
+
+.nav-badge {
+  margin-left: auto;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: var(--r-pill);
+  background: var(--risk-high-fill);
+  color: #fff;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  display: inline-grid;
+  place-items: center;
+}
+
+.is-collapsed .nav-group-label {
+  height: 1px;
+  margin: 6px 18px;
+  padding: 0;
+  overflow: hidden;
+  color: transparent;
+  background: var(--border);
+}
+
+.is-collapsed .nav-badge {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 11px;
+}
+
+.is-collapsed .nav a[aria-current='page']::before {
+  left: -12px;
+}
+
+.sidebar-foot {
+  border-top-color: var(--glass-border);
+}
+
+/* Верхняя строка — тонкая, стеклянная; заголовок экрана — в самой странице. */
+.topbar {
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border-bottom: 1px solid var(--glass-border);
+  padding: 8px var(--sp-6);
+  z-index: 15;
+}
+
+.topbar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.topbar-crumb {
+  font-size: var(--fs-xs);
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  color: var(--text-3);
+}
+
+.topbar-sep {
+  color: var(--border-strong);
+}
+
+.content {
+  padding: var(--sp-6) var(--sp-6) var(--sp-10);
+}
+
+/* ---------- Поверхности ---------- */
+.card,
+.panel {
+  border-radius: var(--r-xl);
+  border-color: var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+:root[data-theme='dark'] .card,
+:root[data-theme='dark'] .panel,
+:root[data-theme='dark'] .river-flow,
+:root[data-theme='dark'] .stat,
+:root[data-theme='dark'] .dash-hero {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.028), rgba(255, 255, 255, 0) 38%), var(--surface);
+  box-shadow: var(--glass-highlight), var(--shadow-sm);
+}
+
+.card-head h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16.5px;
+  font-weight: 650;
+}
+
+.card-head h2 .icon {
+  color: var(--text-3);
+}
+
+.eyebrow {
+  letter-spacing: 0.01em;
+}
+
+/* ---------- Элементы ---------- */
+.btn {
+  border-radius: var(--r-md);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.btn.lg {
+  border-radius: 14px;
+}
+
+.btn.primary {
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08), 0 6px 16px -8px rgba(0, 0, 0, 0.35);
+}
+
+.btn.primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+/* Главное действие экрана: заметное, но без мигания. */
+.btn.glow {
+  box-shadow: var(--accent-glow);
+}
+
+.btn.glow .icon {
+  color: var(--accent);
+}
+
+:root[data-theme='dark'] .btn.glow .icon {
+  color: #0a66d6;
+}
+
+.risk {
+  height: 26px;
+  font-weight: 650;
+  font-size: 12.5px;
+  letter-spacing: 0.005em;
+}
+
+.risk.lg {
+  height: 34px;
+}
+
+.pill {
+  height: 28px;
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+
+.segmented {
+  border-radius: var(--r-pill);
+}
+
+.segmented button {
+  border-radius: var(--r-pill);
+}
+
+.outlook-strip {
+  border: 1px solid transparent;
+  border-radius: 14px;
+  background: var(--accent-soft);
+  transition: border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+
+.outlook-strip:hover {
+  outline: none;
+  border-color: var(--accent-ring);
+}
+
+.outlook-strip.has-threat {
+  background: var(--risk-high-bg);
+}
+
+.outlook-strip.has-threat:hover {
+  border-color: var(--risk-high);
+}
+
+.callout {
+  border-radius: 14px;
+}
+
+.source-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: var(--r-pill);
+  background: var(--demo-bg);
+  color: var(--demo);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  width: fit-content;
+}
+
+/* Диалоги и уведомления — плотное стекло. */
+dialog {
+  border-radius: var(--r-2xl);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  box-shadow: var(--glass-highlight), var(--shadow-lg);
+}
+
+dialog[open] {
+  animation: e-pop var(--dur-slow) var(--ease-out);
+}
+
+dialog::backdrop {
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+}
+
+.notice {
+  border-radius: 14px;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-float);
+  animation: e-slide var(--dur-slow) var(--ease-out);
+}
+
+.banner {
+  border-radius: 0;
+}
+
+/* Вход: знак, заголовок, пояснение — без лишнего. */
+.login-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.login-head h2 {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.login-mark {
+  width: 40px;
+  height: 40px;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.login-form input {
+  height: 44px;
+}
+
+/* ---------- Заголовок страницы ---------- */
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4) var(--sp-6);
+  flex-wrap: wrap;
+  padding: var(--sp-2) 2px 0;
+}
+
+.page-head-text {
+  min-width: 0;
+  max-width: 920px;
+}
+
+.page-title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+.page-lead {
+  margin-top: 10px;
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 1.55;
+  max-width: 80ch;
+}
+
+.page-head-actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+/* ---------- Главная панель ---------- */
+.dash {
+  gap: var(--sp-5);
+}
+
+.dash-hero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--sp-5) var(--sp-8);
+  align-items: end;
+  padding: 26px 30px;
+  border-radius: var(--r-2xl);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Тон обстановки — мягкое свечение в углу и цвет точки; сам текст остаётся нейтральным и читаемым. */
+.dash-hero::before {
+  content: '';
+  position: absolute;
+  inset: -40% -10% auto auto;
+  width: 60%;
+  height: 160%;
+  background: radial-gradient(closest-side, var(--hero-glow, var(--accent-soft)), transparent 70%);
+  z-index: -1;
+  pointer-events: none;
+}
+
+.dash-hero[data-tone='ok'] {
+  --hero-dot: var(--risk-low-fill);
+  --hero-glow: var(--risk-low-bg);
+}
+
+.dash-hero[data-tone='warn'] {
+  --hero-dot: var(--risk-medium-fill);
+  --hero-glow: var(--risk-medium-bg);
+}
+
+.dash-hero[data-tone='danger'] {
+  --hero-dot: var(--risk-high-fill);
+  --hero-glow: var(--risk-high-bg);
+}
+
+.dash-hero[data-tone='danger'] {
+  border-color: color-mix(in srgb, var(--risk-high-fill) 35%, var(--border));
+}
+
+/* Вступление: волна Есиля как тихий фон (статичная, без анимации). */
+.dash-hero.is-intro::after {
+  content: '';
+  position: absolute;
+  right: -2%;
+  bottom: -18px;
+  width: 58%;
+  height: 120px;
+  background: linear-gradient(90deg, transparent, var(--river) 70%);
+  opacity: 0.22;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 120' preserveAspectRatio='none'%3E%3Cpath d='M0 80c60-40 110-40 170 0s110 40 170 0 110-40 170 0 70 30 90 20' fill='none' stroke='black' stroke-width='6' stroke-linecap='round'/%3E%3Cpath d='M0 104c60-34 110-34 170 0s110 34 170 0 110-34 170 0 70 26 90 16' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' opacity='.6'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 120' preserveAspectRatio='none'%3E%3Cpath d='M0 80c60-40 110-40 170 0s110 40 170 0 110-40 170 0 70 30 90 20' fill='none' stroke='black' stroke-width='6' stroke-linecap='round'/%3E%3Cpath d='M0 104c60-34 110-34 170 0s110 34 170 0 110-34 170 0 70 26 90 16' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' opacity='.6'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.dh-text {
+  min-width: 0;
+}
+
+.dh-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+}
+
+.dh-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--hero-dot, var(--accent));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--hero-dot, var(--accent)) 22%, transparent);
+  flex: none;
+}
+
+.dh-title {
+  margin-top: 10px;
+  font-size: var(--fs-display);
+  font-weight: 720;
+  letter-spacing: -0.038em;
+  line-height: 1.04;
+  max-width: 24ch;
+  text-wrap: balance;
+}
+
+.dash-hero:not(.is-intro) .dh-title {
+  font-size: clamp(26px, 1rem + 1.4vw, 40px);
+}
+
+.dh-lead {
+  margin-top: 14px;
+  max-width: 62ch;
+  font-size: var(--fs-md);
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.dh-counts {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dh-count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 7px 14px 7px 12px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+.dh-count-n {
+  font-size: 22px;
+  font-weight: 720;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--text-3);
+}
+
+.dh-count-l {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+
+.dh-count.on {
+  border-color: transparent;
+}
+
+.dh-count.on.r-HIGH {
+  background: var(--risk-high-bg);
+}
+
+.dh-count.on.r-HIGH .dh-count-n {
+  color: var(--risk-high);
+}
+
+.dh-count.on.r-MEDIUM {
+  background: var(--risk-medium-bg);
+}
+
+.dh-count.on.r-MEDIUM .dh-count-n {
+  color: var(--risk-medium);
+}
+
+.dh-count.on.r-LOW {
+  background: var(--risk-low-bg);
+}
+
+.dh-count.on.r-LOW .dh-count-n {
+  color: var(--risk-low);
+}
+
+.dash-hero .outlook-strip {
+  margin-top: 14px;
+}
+
+.dh-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.dh-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.dh-hint {
+  max-width: 44ch;
+  text-align: right;
+}
+
+.dh-progress {
+  grid-column: 1 / -1;
+}
+
+/* Сцена: карта (главный объект) + «живая река» слева, предупреждения и станция справа. */
+.stage {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: var(--sp-5);
+  align-items: start;
+}
+
+.stage-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.stage-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.stage-map .map-wrap {
+  height: clamp(420px, calc(100dvh - 330px), 780px);
+}
+
+/* ---------- Карта ---------- */
+.map-wrap {
+  border-radius: var(--r-2xl);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+}
+
+.map-wrap.has-threat {
+  border-color: color-mix(in srgb, var(--risk-medium-fill) 45%, var(--border));
+}
+
+.map-legend,
+.map-btn {
+  background: var(--glass-strong) !important;
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-float);
+}
+
+.map-legend {
+  border-radius: 14px;
+  font-size: var(--fs-xs);
+  top: 58px;
+  max-width: 320px;
+}
+
+.map-btn {
+  border-radius: 12px;
+}
+
+.legend-line {
+  border-top-width: 3px;
+  border-radius: 2px;
+}
+
+.legend-line.threat {
+  border-top: 3px dashed var(--risk-high-fill);
+}
+
+.legend-dot.r-LOW {
+  background: var(--risk-low-fill);
+}
+
+.legend-dot.r-MEDIUM {
+  background: var(--risk-medium-fill);
+}
+
+.legend-dot.r-HIGH {
+  background: var(--risk-high-fill);
+}
+
+.legend-dot.r-NO_DATA {
+  background: var(--risk-unknown-fill);
+}
+
+/* Маркер станции: точка на координате + стеклянная подпись (название, уровень, риск словом). */
+.marker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none !important;
+  box-shadow: none;
+  border-radius: 0;
+  color: var(--text);
+  font: 600 12.5px/1.25 var(--font);
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.marker:focus-visible {
+  outline: none;
+}
+
+.marker:focus-visible .m-card {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.m-pin {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.m-core {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--risk-unknown-fill);
+  box-shadow: 0 0 0 3px var(--surface-raised), 0 0 0 4px var(--glass-border), 0 4px 10px rgba(0, 0, 0, 0.25);
+  transition: transform var(--dur) var(--ease-out), background var(--dur-slow) var(--ease);
+}
+
+.m-halo {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.marker.r-LOW .m-core {
+  background: var(--risk-low-fill);
+}
+
+.marker.r-MEDIUM .m-core {
+  background: var(--risk-medium-fill);
+}
+
+.marker.r-HIGH .m-core {
+  background: var(--risk-high-fill);
+}
+
+.marker.r-MEDIUM .m-halo {
+  background: var(--risk-medium-fill);
+  opacity: 0.22;
+  transform: scale(1.5);
+}
+
+/* Высокий риск — медленная «волна» вокруг точки: сигнал тревоги по данным сервера, а не украшение. */
+.marker.r-HIGH .m-halo {
+  background: var(--risk-high-fill);
+  animation: m-ping 2.4s var(--ease-out) infinite;
+}
+
+/* Угроза приближается — пунктирное кольцо (форма, а не только цвет). */
+.marker.is-next .m-pin::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px dashed var(--risk-medium-fill);
+}
+
+.m-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 11px 6px 10px;
+  border-radius: 12px;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-float);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease), transform var(--dur) var(--ease-out);
+}
+
+.marker:hover .m-card {
+  transform: translateY(-1px);
+}
+
+.m-name {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+}
+
+.m-meta {
+  display: flex;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  font-weight: 560;
+  color: var(--text-2);
+}
+
+.m-risk::before {
+  content: '·';
+  margin-right: 6px;
+  color: var(--text-3);
+}
+
+.marker.r-LOW .m-risk {
+  color: var(--risk-low);
+}
+
+.marker.r-MEDIUM .m-risk {
+  color: var(--risk-medium);
+}
+
+.marker.r-HIGH .m-risk {
+  color: var(--risk-high);
+}
+
+.m-next {
+  font-size: var(--fs-xs);
+  font-weight: 650;
+  color: var(--risk-medium);
+}
+
+.m-next:empty {
+  display: none;
+}
+
+.marker.selected {
+  z-index: 2;
+}
+
+.marker.selected .m-core {
+  transform: scale(1.25);
+}
+
+.marker.selected .m-card {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring), var(--shadow-float);
+}
+
+.q-popup .maplibregl-popup-content {
+  background: var(--glass-strong) !important;
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px !important;
+}
+
+.maplibregl-ctrl-group {
+  border-radius: 12px !important;
+  overflow: hidden;
+}
+
+/* ---------- «Живая река»: станции по течению ---------- */
+.river-flow {
+  padding: 18px 20px 14px;
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.rf-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  flex-wrap: wrap;
+}
+
+.rf-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16.5px;
+  font-weight: 650;
+}
+
+.rf-dir {
+  color: var(--river);
+  font-weight: 500;
+}
+
+.rf-track {
+  list-style: none;
+  margin: 12px 0 6px;
+  padding: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+}
+
+.rf-node {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.rf-btn {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.rf-btn:hover {
+  background: var(--surface-2);
+}
+
+.rf-btn[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent-ring);
+}
+
+.rf-node.is-next .rf-btn {
+  border-style: dashed;
+  border-color: var(--risk-medium-fill);
+}
+
+/* Столбик уровня: заливка — последнее измерение, риски — учебные пороги (жёлтый — предупредительный, красный — опасный). */
+.rf-gauge {
+  position: relative;
+  width: 12px;
+  min-height: 92px;
+  border-radius: 7px;
+  background: var(--surface-3);
+  flex: none;
+}
+
+.rf-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 7px;
+  background: linear-gradient(to top, var(--river), color-mix(in srgb, var(--river) 55%, var(--surface)));
+  transition: background var(--dur-slow) var(--ease);
+}
+
+.rf-gauge.r-MEDIUM .rf-fill {
+  background: linear-gradient(to top, var(--risk-medium-fill), color-mix(in srgb, var(--risk-medium-fill) 55%, var(--surface)));
+}
+
+.rf-gauge.r-HIGH .rf-fill {
+  background: linear-gradient(to top, var(--risk-high-fill), color-mix(in srgb, var(--risk-high-fill) 55%, var(--surface)));
+}
+
+.rf-mark {
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.rf-mark.w {
+  background: var(--risk-medium-fill);
+}
+
+.rf-mark.d {
+  background: var(--risk-high-fill);
+}
+
+.rf-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-width: 0;
+}
+
+.rf-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 650;
+  letter-spacing: -0.005em;
+}
+
+/* Точка «данные идут»: вспыхивает при каждом новом измерении станции. */
+.rf-live {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-3);
+  opacity: 0.3;
+  transition: opacity 0.7s var(--ease), background 0.7s var(--ease);
+}
+
+.rf-live.is-fresh {
+  opacity: 1;
+  background: var(--accent);
+  transition-duration: 0.08s;
+}
+
+.rf-level {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  font-size: 22px;
+  font-weight: 680;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+
+.rf-level .muted {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.rf-level .trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.rf-level .trend .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.rf-status {
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--text-2);
+}
+
+.rf-next {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--risk-medium);
+}
+
+.rf-next::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px dashed var(--risk-medium-fill);
+}
+
+.rf-eta {
+  font-size: 12.5px;
+  font-weight: 620;
+  color: var(--risk-high);
+}
+
+/* Связь между станциями: пунктир «спокойно», бегущий пунктир «угроза идёт вниз», сплошная «дошла». */
+.rf-link {
+  --c: var(--risk-medium-fill);
+  flex: 0 0 clamp(64px, 6.5vw, 120px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px;
+  min-width: 0;
+}
+
+.rf-link.r-HIGH {
+  --c: var(--risk-high-fill);
+}
+
+.rf-link.r-LOW {
+  --c: var(--river);
+}
+
+.rf-line {
+  position: relative;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: repeating-linear-gradient(90deg, var(--border-strong) 0 6px, transparent 6px 11px);
+}
+
+.rf-line::after {
+  content: '';
+  position: absolute;
+  right: -2px;
+  top: 50%;
+  border: 5px solid transparent;
+  border-left: 7px solid var(--border-strong);
+  border-right: 0;
+  transform: translateY(-50%);
+}
+
+.rf-flow {
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+}
+
+.rf-link.s-threat .rf-line {
+  background: color-mix(in srgb, var(--c) 22%, transparent);
+}
+
+.rf-link.s-threat .rf-flow {
+  background: repeating-linear-gradient(90deg, var(--c) 0 10px, transparent 10px 20px);
+  background-size: 20px 100%;
+  animation: rf-flow 0.9s linear infinite;
+}
+
+.rf-link.s-arrived .rf-line {
+  background: var(--c);
+}
+
+.rf-link.s-threat .rf-line::after,
+.rf-link.s-arrived .rf-line::after {
+  border-left-color: var(--c);
+}
+
+.rf-link-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  font-size: var(--fs-xs);
+  line-height: 1.3;
+  color: var(--text-3);
+}
+
+.rf-link-label b {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.rf-note {
+  margin-top: 4px;
+}
+
+/* ---------- Демо за 2 минуты: тёмная «сцена» в обеих темах ---------- */
+.demo-panel {
+  /* Локальная тёмная палитра: сцена одинаково контрастна на проекторе при любой теме. */
+  --text: #eef2f7;
+  --text-2: #b8c2cf;
+  --text-3: #8f9aa9;
+  --surface: #111720;
+  --surface-2: #18202b;
+  --surface-3: #263040;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --accent: #6cc0ff;
+  --accent-soft: rgba(108, 192, 255, 0.14);
+  --accent-ring: rgba(108, 192, 255, 0.45);
+  --btn-primary: #e9f5ff;
+  --btn-primary-hover: #ffffff;
+  --on-accent: #06121f;
+  --risk-low: #4fd6a4;
+  --risk-medium: #f6c15a;
+  --risk-high: #ff7d73;
+  --risk-unknown: #9aa4b2;
+  --risk-low-bg: rgba(79, 214, 164, 0.14);
+  --risk-medium-bg: rgba(246, 193, 90, 0.15);
+  --risk-high-bg: rgba(255, 125, 115, 0.16);
+  --risk-unknown-bg: rgba(154, 164, 178, 0.14);
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  color: var(--text);
+  background: radial-gradient(900px 340px at 8% -20%, rgba(108, 192, 255, 0.22), transparent 60%), radial-gradient(700px 320px at 100% 120%, rgba(60, 210, 220, 0.12), transparent 60%), #0a0f16;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--r-2xl);
+  padding: 22px 28px 20px;
+  box-shadow: 0 30px 60px -28px rgba(4, 10, 20, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  animation: e-reveal var(--dur-scene) var(--ease-out) both;
+}
+
+.demo-panel.stage-risk,
+.demo-panel.stage-wave {
+  background: radial-gradient(900px 340px at 8% -20%, rgba(255, 125, 115, 0.2), transparent 60%), radial-gradient(700px 320px at 100% 120%, rgba(246, 193, 90, 0.12), transparent 60%), #0d0f15;
+}
+
+.demo-panel .demo-head {
+  align-items: center;
+}
+
+.demo-panel .demo-badge {
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.01em;
+}
+
+.demo-count {
+  font-size: var(--fs-sm);
+  color: var(--text-3);
+  letter-spacing: 0.04em;
+}
+
+.demo-count b {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.demo-steps {
+  gap: 10px;
+}
+
+.demo-step-bar {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.12);
+  position: relative;
+  overflow: hidden;
+}
+
+.demo-steps li.done .demo-step-bar {
+  background: var(--accent);
+}
+
+.demo-steps li.current .demo-step-bar {
+  background: linear-gradient(90deg, var(--accent), rgba(108, 192, 255, 0.35));
+}
+
+.demo-step-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+}
+
+.demo-step-n {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-2);
+  flex: none;
+}
+
+.demo-steps li.done .demo-step-n,
+.demo-steps li.current .demo-step-n {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.demo-panel .demo-body {
+  align-items: end;
+}
+
+.demo-text {
+  animation: e-reveal 0.6s var(--ease-out) both;
+}
+
+.demo-panel .demo-stage {
+  font-size: clamp(26px, 1rem + 1.6vw, 44px);
+  font-weight: 720;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+.demo-panel .demo-message {
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--text-2);
+  max-width: 70ch;
+}
+
+.demo-facts {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.demo-fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: var(--fs-sm);
+  font-weight: 560;
+  color: var(--text-2);
+}
+
+.demo-fact .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.demo-fact.on {
+  color: var(--text);
+  background: var(--risk-high-bg);
+  border-color: transparent;
+}
+
+.demo-fact.on .icon {
+  color: var(--risk-high);
+}
+
+.demo-fact.threat {
+  color: var(--text);
+  background: var(--risk-medium-bg);
+  border-color: transparent;
+}
+
+.demo-fact.threat .icon {
+  color: var(--risk-medium);
+}
+
+.demo-panel .reasons li {
+  color: var(--text);
+}
+
+.demo-panel .bar {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.demo-panel .faint {
+  color: var(--text-3);
+}
+
+.demo-panel .btn {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--text);
+}
+
+.demo-panel .btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.demo-panel .btn.primary {
+  background: var(--btn-primary);
+  color: var(--on-accent);
+  border-color: transparent;
+}
+
+.demo-panel .btn.ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.demo-panel .callout {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+}
+
+/* ---------- Предупреждения ---------- */
+.alert-card {
+  position: relative;
+  border: 1px solid var(--border);
+  border-left-width: 1px;
+  border-radius: var(--r-lg);
+  padding: 14px 16px 14px 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  animation: e-reveal var(--dur-slow) var(--ease-out) both;
+}
+
+.alert-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--risk-medium-fill);
+}
+
+.alert-card.sev-HIGH::before {
+  background: var(--risk-high-fill);
+}
+
+.alert-card.sev-HIGH:not(.is-cleared) {
+  background: linear-gradient(90deg, var(--risk-high-bg), transparent 50%), var(--surface);
+}
+
+.alert-card.is-cleared {
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.alert-card.is-cleared::before {
+  background: var(--border-strong);
+}
+
+.alert-card.compact {
+  padding: 10px 12px 10px 14px;
+  box-shadow: none;
+}
+
+.alert-sev {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: var(--risk-medium-bg);
+  color: var(--risk-medium);
+  flex: none;
+}
+
+.alert-card.sev-HIGH .alert-sev {
+  background: var(--risk-high-bg);
+  color: var(--risk-high);
+}
+
+.alert-card.is-cleared .alert-sev {
+  background: var(--surface-3);
+  color: var(--text-3);
+}
+
+.alert-card.compact .alert-sev {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+}
+
+.alert-card.compact .alert-sev .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.alert-title {
+  font-weight: 650;
+}
+
+.alert-title .link-btn {
+  font-weight: 650;
+  font-size: 15px;
+}
+
+.alert-life {
+  list-style: none;
+  margin: 12px 0 0 48px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.alert-life li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px 0 4px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+}
+
+.life-dot {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-strong);
+  flex: none;
+}
+
+.life-dot .icon {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.6;
+}
+
+.alert-life li.done {
+  color: var(--text-2);
+}
+
+.alert-life li.done .life-dot {
+  background: var(--risk-low-fill);
+  border-color: transparent;
+  color: #fff;
+}
+
+.alert-life li.current {
+  color: var(--text);
+  font-weight: 620;
+  background: var(--accent-soft);
+}
+
+.alert-life li.current .life-dot {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--on-accent);
+}
+
+.alert-life li.cleared {
+  padding: 0 10px;
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+
+.alert-actions,
+.alert-resolve,
+.alert-events {
+  margin-left: 48px;
+}
+
+.stat-row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-4);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 20px;
+  border-radius: var(--r-xl);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: var(--fs-value);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  color: var(--text-3);
+}
+
+.stat-label {
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+}
+
+.stat.tone-danger,
+.stat.tone-warn,
+.stat.tone-accent {
+  color: inherit;
+}
+
+.stat.tone-danger .stat-value {
+  color: var(--risk-high);
+}
+
+.stat.tone-warn .stat-value {
+  color: var(--risk-medium);
+}
+
+.stat.tone-accent .stat-value {
+  color: var(--accent);
+}
+
+/* ---------- Станция, графики, таблицы ---------- */
+.big-level {
+  font-family: var(--font-display);
+  font-size: var(--fs-value);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
+.sc-name {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.status-line {
+  border-radius: 12px;
+}
+
+.tooltip {
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-float);
+}
+
+.table th {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-3);
+}
+
+.table tr[aria-selected='true'] td {
+  background: var(--accent-soft);
+}
+
+.scenario-option {
+  border-radius: 14px;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.rb-row {
+  border-radius: 14px;
+}
+
+.rb-row.is-selected {
+  background: var(--accent-soft);
+  border-color: var(--accent-ring);
+}
+
+/* ---------- Движение ---------- */
+/* Поэтапное появление: элементы с --i выходят друг за другом (≈ 70 мс шаг), один раз при показе. */
+.reveal {
+  animation: e-reveal var(--dur-scene) var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+@keyframes e-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes e-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes e-slide {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes m-ping {
+  0% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  80%,
+  100% {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+
+@keyframes rf-flow {
+  to {
+    background-position: 20px 0;
+  }
+}
+
+@keyframes rf-flow-y {
+  to {
+    background-position: 0 20px;
+  }
+}
+
+/* Меньше движения: всё меняется сразу, бегущие линии и «волна» у маркера стоят. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .marker.r-HIGH .m-halo {
+    opacity: 0.25;
+    transform: scale(1.6);
+  }
+}
+
+/* ---------- Адаптивность ---------- */
+@media (max-width: 1365px) {
+  .stage {
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+  .rf-level {
+    font-size: 19px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dash-hero {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+  .dh-actions {
+    align-items: flex-start;
+  }
+  .dh-buttons {
+    justify-content: flex-start;
+  }
+  .dh-hint {
+    text-align: left;
+  }
+}
+
+/* Узко: река идёт сверху вниз, связь — вертикальная линия с подписью. */
+@media (max-width: 900px) {
+  .rf-track {
+    flex-direction: column;
+  }
+  .rf-link {
+    flex: none;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 2px 0 2px 16px;
+  }
+  .rf-line {
+    width: 4px;
+    height: 34px;
+    flex: none;
+    background: repeating-linear-gradient(180deg, var(--border-strong) 0 6px, transparent 6px 11px);
+  }
+  .rf-line::after {
+    right: auto;
+    left: 50%;
+    top: auto;
+    bottom: -4px;
+    border: 5px solid transparent;
+    border-top: 7px solid var(--border-strong);
+    border-bottom: 0;
+    transform: translateX(-50%);
+  }
+  .rf-link.s-threat .rf-line::after,
+  .rf-link.s-arrived .rf-line::after {
+    border-left-color: transparent;
+    border-top-color: var(--c);
+  }
+  .rf-link.s-threat .rf-flow {
+    background: repeating-linear-gradient(180deg, var(--c) 0 10px, transparent 10px 20px);
+    background-size: 100% 20px;
+    animation-name: rf-flow-y;
+  }
+  .rf-link-label {
+    flex-direction: row;
+    gap: 8px;
+    align-items: baseline;
+    text-align: left;
+  }
+  .rf-gauge {
+    min-height: 72px;
+  }
+}
+
+@media (max-width: 767px) {
+  .content {
+    padding: var(--sp-4) var(--sp-4) var(--sp-8);
+  }
+  .topbar {
+    padding: 8px var(--sp-4);
+  }
+  .dash-hero {
+    padding: 20px 18px;
+    border-radius: var(--r-xl);
+  }
+  .dh-buttons {
+    width: 100%;
+  }
+  .dh-buttons .btn {
+    flex: 1 1 100%;
+  }
+  .stage-map .map-wrap {
+    height: 58vh;
+    min-height: 340px;
+  }
+  .map-legend {
+    display: none;
+  }
+  .demo-panel {
+    padding: 18px 16px;
+    border-radius: var(--r-xl);
+  }
+  .alert-life,
+  .alert-actions,
+  .alert-resolve,
+  .alert-events {
+    margin-left: 0;
+  }
+  .page-title {
+    font-size: 24px;
+  }
+}
+
+/* Подпись маркера слева от точки (соседняя станция прямо севернее). */
+.marker.label-left {
+  flex-direction: row-reverse;
+}
+
+.marker.label-left .m-card {
+  text-align: right;
+  align-items: flex-end;
+}
+
+.m-risk:empty {
+  display: none;
+}
+
+/* Глобальные .r-* (заливка точек списка в styles.css) не должны красить узлы и связи реки целиком. */
+.rf-node,
+.rf-link {
+  background: none;
+}
+
+/* Блоки страницы не сжимаются в колонке с прокруткой (иначе панель демо сплющивается). */
+.content > * {
+  flex-shrink: 0;
+}
+
+/* Узел реки: столбик фиксированной высоты, текст рядом (не растягиваем столбик на всю карточку). */
+.rf-btn {
+  align-items: flex-start;
+}
+
+.rf-gauge {
+  height: 104px;
+  min-height: 0;
+}
+
+/* Компактное предупреждение в боковой колонке: без крупного значка, текст на всю ширину. */
+.alert-card.compact .alert-sev {
+  display: none;
+}
+
+.alert-card.compact .alert-main {
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.alert-card.compact .alert-body {
+  flex: 1 1 180px;
+}
+
+/* Верхняя строка в одну линию на ноутбуках: сначала убираются подписи, значения и бейдж демо-данных остаются. */
+@media (max-width: 1599px) {
+  .sim-clock .faint {
+    display: none;
+  }
+}
+
+@media (max-width: 1439px) {
+  .topbar-crumb,
+  .topbar-sep {
+    display: none;
+  }
+}
+
+/* Пропустить меню (клавиатура): видна только в фокусе. */
+.skip-link {
+  position: fixed;
+  left: 12px;
+  top: -60px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: var(--btn-primary);
+  color: var(--on-accent);
+  font-weight: 600;
+  text-decoration: none;
+  transition: top var(--dur) var(--ease-out);
+}
+
+.skip-link:focus {
+  top: 12px;
+}
+
+.content:focus {
+  outline: none;
+}
+
+/* Демо вне главной панели — компактная строка: этап, сообщение, управление. */
+.demo-panel.is-compact {
+  padding: 14px 20px;
+  gap: 10px;
+}
+
+.demo-panel.is-compact .demo-steps,
+.demo-panel.is-compact .demo-facts,
+.demo-panel.is-compact .reasons,
+.demo-panel.is-compact .demo-summary,
+.demo-panel.is-compact .outlook-strip,
+.demo-panel.is-compact > .faint {
+  display: none;
+}
+
+.demo-panel.is-compact .demo-stage {
+  font-size: var(--fs-xl);
+}
+
+.demo-panel.is-compact .demo-message {
+  font-size: var(--fs-base);
+}

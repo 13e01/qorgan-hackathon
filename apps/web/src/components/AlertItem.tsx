@@ -19,6 +19,27 @@ export function AlertStatusChip({ alert }: { alert: Alert }) {
   );
 }
 
+const LIFECYCLE = ['NEW', 'VIEWED', 'RESOLVED'] as const;
+
+/** Ход обработки (только отображение статуса сервера): открыто → просмотрено → обработано; «снято» — отдельно. */
+export function AlertLifecycle({ alert }: { alert: Alert }) {
+  const { t } = useI18n();
+  const at = LIFECYCLE.indexOf(alert.status);
+  return (
+    <ol className="alert-life" aria-label={t('alert.lifecycle')}>
+      {LIFECYCLE.map((s, i) => (
+        <li key={s} className={i < at ? 'done' : i === at ? 'current' : ''} aria-current={i === at ? 'step' : undefined}>
+          <span className="life-dot" aria-hidden="true">
+            {i <= at && <Icon name="check" />}
+          </span>
+          {t(`alert.status.${s}`)}
+        </li>
+      ))}
+      {!alert.isActive && <li className="cleared">{t('alert.stage.cleared')}</li>}
+    </ol>
+  );
+}
+
 function Events({ alertId }: { alertId: number }) {
   const { t, lang } = useI18n();
   const [events, setEvents] = useState<AlertEvent[] | null>(null);
@@ -84,6 +105,9 @@ export function AlertCard({ alert, compact = false, onChanged }: { alert: Alert;
   return (
     <article className={`alert-card sev-${alert.severity}${alert.isActive ? '' : ' is-cleared'}${compact ? ' compact' : ''}`}>
       <div className="alert-main">
+        <span className="alert-sev" aria-hidden="true">
+          <Icon name="warning" />
+        </span>
         <RiskBadge risk={alert.severity} />
         <div className="alert-body">
           <div className="alert-title">
@@ -99,6 +123,7 @@ export function AlertCard({ alert, compact = false, onChanged }: { alert: Alert;
         </div>
         <AlertStatusChip alert={alert} />
       </div>
+      {!compact && <AlertLifecycle alert={alert} />}
 
       {!compact && user && (
         <div className="alert-actions">
