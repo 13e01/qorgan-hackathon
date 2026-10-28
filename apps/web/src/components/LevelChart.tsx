@@ -7,6 +7,7 @@ import { useI18n } from '../i18n';
 import { metersFromCm, shortDateTime, dateTime } from '../lib/format';
 import { lastHours } from '../state/live';
 import { useStore } from '../state/store';
+import { usePalette } from '../state/theme';
 
 interface Row {
   t: number;
@@ -18,6 +19,7 @@ interface Row {
 export function LevelChart({ code, forecast, tall = false }: { code: string; forecast?: ForecastResponse | null; tall?: boolean }) {
   const { t, lang } = useI18n();
   const { live, stations, user } = useStore();
+  const c = usePalette();
   const meta = stations.find((s) => s.code === code);
   const level = meta?.parameters.find((p) => p.code === 'water_level');
   const all = live.levels[code]?.points ?? [];
@@ -50,14 +52,14 @@ export function LevelChart({ code, forecast, tall = false }: { code: string; for
 
   return (
     <div>
-      <div className="chart-legend" style={{ marginBottom: 6 }}>
+      <div className="chart-legend">
         <span>
-          <span className="swatch" style={{ borderColor: '#5cc8ff' }} />
+          <span className="swatch" style={{ borderColor: c.measured }} />
           {t('chart.measured')}
         </span>
         {hasForecast && (
           <span>
-            <span className="swatch dashed" style={{ borderColor: '#c4b5fd' }} />
+            <span className="swatch dashed" style={{ borderColor: c.forecast }} />
             {t('chart.forecast')}
           </span>
         )}
@@ -78,24 +80,24 @@ export function LevelChart({ code, forecast, tall = false }: { code: string; for
       <div className={`chart-box${tall ? ' tall' : ''}`}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={rows} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
-            <CartesianGrid stroke="#223043" strokeDasharray="3 3" />
+            <CartesianGrid stroke={c.grid} strokeDasharray="3 3" />
             <XAxis
               dataKey="t"
               type="number"
               scale="time"
               domain={['dataMin', 'dataMax']}
               tickFormatter={(v: number) => shortDateTime(v, lang)}
-              stroke="#73859a"
+              stroke={c.axis}
               fontSize={11}
               minTickGap={40}
             />
             <YAxis
               domain={[Number.isFinite(lo) ? lo - pad : 'auto', Number.isFinite(hi) ? hi + pad : 'auto']}
               tickFormatter={(v: number) => fmt(v) ?? ''}
-              stroke="#73859a"
+              stroke={c.axis}
               fontSize={11}
               width={52}
-              label={{ value: t('chart.axisLevel'), angle: -90, position: 'insideLeft', fill: '#73859a', fontSize: 11 }}
+              label={{ value: t('chart.axisLevel'), angle: -90, position: 'insideLeft', fill: c.axis, fontSize: 11 }}
             />
             <Tooltip
               isAnimationActive={false}
@@ -124,18 +126,16 @@ export function LevelChart({ code, forecast, tall = false }: { code: string; for
                 );
               }}
             />
-            {warning !== null && <ReferenceLine y={warning / 100} stroke="#f0b43c" strokeDasharray="6 4" ifOverflow="extendDomain" />}
-            {danger !== null && <ReferenceLine y={danger / 100} stroke="#f0564f" strokeDasharray="6 4" ifOverflow="extendDomain" />}
-            {nowT !== null && <ReferenceLine x={nowT} stroke="#73859a" strokeDasharray="2 3" label={{ value: t('chart.now'), fill: '#73859a', fontSize: 10, position: 'top' }} />}
-            <Area dataKey="band" stroke="none" fill="#a78bfa" fillOpacity={0.18} isAnimationActive={false} connectNulls={false} />
-            <Line dataKey="m" stroke="#5cc8ff" strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={false} name={t('chart.measured')} />
-            <Line dataKey="fc" stroke="#c4b5fd" strokeWidth={2} strokeDasharray="6 4" dot={{ r: 3 }} isAnimationActive={false} connectNulls name={t('chart.forecast')} />
+            {warning !== null && <ReferenceLine y={warning / 100} stroke={c.warning} strokeDasharray="6 4" ifOverflow="extendDomain" />}
+            {danger !== null && <ReferenceLine y={danger / 100} stroke={c.danger} strokeDasharray="6 4" ifOverflow="extendDomain" />}
+            {nowT !== null && <ReferenceLine x={nowT} stroke={c.axis} strokeDasharray="2 3" label={{ value: t('chart.now'), fill: c.axis, fontSize: 10, position: 'top' }} />}
+            <Area dataKey="band" stroke="none" fill={c.forecastBand} fillOpacity={0.18} isAnimationActive={false} connectNulls={false} />
+            <Line dataKey="m" stroke={c.measured} strokeWidth={2} dot={false} isAnimationActive={false} connectNulls={false} name={t('chart.measured')} />
+            <Line dataKey="fc" stroke={c.forecast} strokeWidth={2} strokeDasharray="6 4" dot={{ r: 3 }} isAnimationActive={false} connectNulls name={t('chart.forecast')} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
-      <p className="faint" style={{ marginTop: 4 }}>
-        {t('chart.axisTime')}
-      </p>
+      <p className="faint note">{t('chart.axisTime')}</p>
     </div>
   );
 }

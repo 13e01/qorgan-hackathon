@@ -8,13 +8,14 @@ import { useI18n } from '../i18n';
 import { dateTime, metersFromCm, shortDateTime } from '../lib/format';
 import { lastHours } from '../state/live';
 import { useStore } from '../state/store';
+import { usePalette } from '../state/theme';
 
-/** Цвета станций — не цвета риска, чтобы не путать. */
-const STATION_COLORS = ['#60a5fa', '#c084fc', '#f472b6', '#e2e8f0'];
 
 function WaveChart() {
   const { t, lang } = useI18n();
   const { stations, live, user } = useStore();
+  // Цвета станций — не цвета риска, чтобы не путать.
+  const c = usePalette();
   const rows = new Map<number, Record<string, number>>();
   for (const st of stations) {
     const pts = live.levels[st.code]?.points ?? [];
@@ -30,17 +31,17 @@ function WaveChart() {
     <div className="chart-box tall">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 16, bottom: 4, left: 0 }}>
-          <CartesianGrid stroke="#223043" strokeDasharray="3 3" />
-          <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tickFormatter={(v: number) => shortDateTime(v, lang)} stroke="#73859a" fontSize={11} minTickGap={40} />
-          <YAxis domain={['auto', 'auto']} tickFormatter={(v: number) => metersFromCm(v * 100, lang, 1) ?? ''} stroke="#73859a" fontSize={11} width={48} />
+          <CartesianGrid stroke={c.grid} strokeDasharray="3 3" />
+          <XAxis dataKey="t" type="number" scale="time" domain={['dataMin', 'dataMax']} tickFormatter={(v: number) => shortDateTime(v, lang)} stroke={c.axis} fontSize={11} minTickGap={40} />
+          <YAxis domain={['auto', 'auto']} tickFormatter={(v: number) => metersFromCm(v * 100, lang, 1) ?? ''} stroke={c.axis} fontSize={11} width={48} />
           <Tooltip
             isAnimationActive={false}
-            contentStyle={{ background: '#141d29', border: '1px solid #2e3f56', borderRadius: 6, fontSize: 12 }}
+            contentStyle={{ background: 'var(--surface-raised)', border: '1px solid var(--border-strong)', borderRadius: 10, fontSize: 12, color: 'var(--text)' }}
             labelFormatter={(v) => `${t('top.simTime')}: ${dateTime(new Date(Number(v)).toISOString(), lang)}`}
             formatter={(value, name) => [`${metersFromCm(Number(value) * 100, lang)} ${t('unit.m')}`, String(name)]}
           />
           {stations.map((st, i) => (
-            <Line key={st.code} dataKey={st.code} name={`${st.code} ${st.name}`} stroke={STATION_COLORS[i % STATION_COLORS.length]} strokeWidth={2} dot={false} isAnimationActive={false} connectNulls />
+            <Line key={st.code} dataKey={st.code} name={`${st.code} ${st.name}`} stroke={c.stations[i % c.stations.length]} strokeWidth={2} dot={false} isAnimationActive={false} connectNulls />
           ))}
         </LineChart>
       </ResponsiveContainer>
@@ -61,9 +62,7 @@ function RiskTimeline() {
         const pts = live.risks[st.code]?.points ?? [];
         return (
           <div key={st.code} className="timeline-row">
-            <span className="faint">
-              {st.code} · {st.name}
-            </span>
+            <span className="faint">{st.name}</span>
             <div className="timeline-cells" role="img" aria-label={`${st.name}: ${pts.length} ${t('unit.h')}`}>
               {pts.map((p) => (
                 <span key={p.t} className={`c-${p.risk}`} title={`${dateTime(new Date(p.t).toISOString(), lang)} — ${t(`risk.${p.risk}`)}`} />
@@ -74,7 +73,7 @@ function RiskTimeline() {
       })}
       <div className="timeline-row">
         <span />
-        <div className="faint" style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <div className="faint timeline-axis">
           <span>{Number.isFinite(first) ? dateTime(new Date(first).toISOString(), lang) : ''}</span>
           <span>{Number.isFinite(last) ? dateTime(new Date(last).toISOString(), lang) : ''}</span>
         </div>
@@ -94,44 +93,41 @@ export function Analytics() {
   const { explanation, forecast } = useStationDetails(selected);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div className="panel">
-        <div className="panel-head">
+    <div className="page">
+      <div className="card">
+        <div className="card-head">
           <h2>{t('analytics.wave')}</h2>
         </div>
-        <p className="muted" style={{ marginBottom: 8 }}>
-          {t('analytics.waveHint')}
-        </p>
+        <p className="muted">{t('analytics.waveHint')}</p>
         <WaveChart />
       </div>
-      <div className="panel">
-        <div className="panel-head">
+      <div className="card">
+        <div className="card-head">
           <h2>{t('analytics.timeline')}</h2>
         </div>
-        <p className="muted" style={{ marginBottom: 10 }}>
-          {t('analytics.timelineHint')}
-        </p>
+        <p className="muted">{t('analytics.timelineHint')}</p>
         <RiskTimeline />
       </div>
       <div className="grid-2">
-        <div className="panel">
-          <div className="panel-head">
+        <div className="card">
+          <div className="card-head">
             <h2>{t('analytics.explanation')}</h2>
             <select aria-label={t('stations.col.station')} value={selected} onChange={(e) => select(e.target.value)}>
               {stations.map((s) => (
                 <option key={s.code} value={s.code}>
-                  {s.code} · {s.name}
+                  {s.name} ({s.code})
                 </option>
               ))}
             </select>
           </div>
           {explanation ? (
             <>
-              <div className="sim-status" style={{ marginBottom: 10 }}>
+              <div className="sim-status">
                 <RiskBadge risk={explanation.level.currentCm === null ? 'NO_DATA' : explanation.risk} large />
                 <span className="faint num">{t('risk.score', { score: explanation.score, max: explanation.maxScore })}</span>
                 <span className="muted">{t(`drivers.${explanation.situation.drivers}`)}</span>
               </div>
+              <div className="table-wrap">
               <table className="table">
                 <thead>
                   <tr>
@@ -152,18 +148,17 @@ export function Analytics() {
                   ))}
                 </tbody>
               </table>
-              <p className="faint" style={{ marginTop: 8 }}>
-                {t('risk.model')}
-              </p>
+              </div>
+              <p className="faint note">{t('risk.model')}</p>
             </>
           ) : (
             <p className="muted">{t('common.loading')}</p>
           )}
         </div>
-        <div className="panel">
-          <div className="panel-head">
+        <div className="card">
+          <div className="card-head">
             <h2>
-              {t('chart.title')} · {selected}
+              {t('chart.title')} · {stations.find((s) => s.code === selected)?.name ?? selected}
             </h2>
           </div>
           <LevelChart code={selected} forecast={forecast} />

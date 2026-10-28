@@ -6,6 +6,7 @@ import { api, ApiError } from '../api/client';
 import type { PublicUser } from '../api/shared';
 import type { MeasurementsResponse, RiskHistoryResponse, ScenarioInfo, Snapshot, StationMeta } from '../api/types';
 import { useI18n, type MessageKey } from '../i18n';
+import { CommandGate } from '../lib/gate';
 import { applySnapshot, initialLive, needsReload, setLevelHistory, setRiskHistory, type LiveState } from './live';
 import { LiveSocket, type ConnectionStatus } from './socket';
 
@@ -55,6 +56,11 @@ interface Store {
   /** Текст ошибки API на выбранном языке; 401 открывает окно входа. */
   describeError: (err: unknown) => string;
   reportError: (err: unknown) => void;
+  /** Общая защита от двойного нажатия для всех команд симулятора (кнопки, демо). */
+  gate: CommandGate;
+  simBusy: boolean;
+  /** Отправить команду симулятора; пока предыдущая не завершилась, новая не отправляется. Ошибка показывается пользователю. */
+  simCommand: (fn: () => Promise<unknown>) => Promise<boolean>;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -72,6 +78,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const [selected, setSelected] = useState('QRG-01');
   const [notices, setNotices] = useState<Notice[]>([]);
   const noticeId = useRef(0);
+  const gate = useMemo(() => new CommandGate(), []);
+  const [simBusy, setSimBusy] = useState(false);
+  useEffect(() => gate.subscribe(setSimBusy), [gate]);
 
   const describeError = useCallback(
     (err: unknown) => {
@@ -98,6 +107,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       notify('error', describeError(err));
     },
     [describeError, notify],
+  );
+
+  const simCommand = useCallback(
+    async (fn: () => Promise<unknown>) => {
+      try {
+        return (await gate.run(fn)) !== null;
+      } catch (err) {
+        reportError(err);
+        return false;
+      }
+    },
+    [gate, reportError],
   );
 
   const loadStations = useCallback(async () => {
@@ -211,8 +232,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       dismiss,
       describeError,
       reportError,
+      gate,
+      simBusy,
+      simCommand,
     }),
-    [user, authReady, login, logout, loginOpen, stations, stationsError, scenarios, live, connection, selected, notices, notify, dismiss, describeError, reportError],
+    [user, authReady, login, logout, loginOpen, stations, stationsError, scenarios, live, connection, selected, notices, notify, dismiss, describeError, reportError, gate, simBusy, simCommand],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

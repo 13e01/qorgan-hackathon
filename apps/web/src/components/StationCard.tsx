@@ -1,12 +1,17 @@
-// Карточка выбранной станции. Главное требование: итоговый риск T2, локальный уровень относительно порогов
-// и угроза со станции выше по течению показываются РАЗДЕЛЬНО (данные — describeSituation на сервере).
+// Карточка выбранной станции. Первый уровень — главное простыми словами: уровень, оценка опасности, тенденция,
+// короткое объяснение, время измерения. «Подробнее» — пороги, прогноз, факторы, качество данных, история, техника.
+// Итоговый риск T2, местная обстановка и угроза сверху показываются РАЗДЕЛЬНО (describeSituation на сервере);
+// угроза сверху не изображается как уже случившийся подъём.
 
 import type { ExplanationResponse, ForecastResponse } from '../api/types';
 import { useI18n } from '../i18n';
 import { dateTime, metersFromCm, number, signed } from '../lib/format';
 import { levelView } from '../lib/level';
+import { plainStatus } from '../lib/status';
 import { useStore } from '../state/store';
-import { RiskBadge, Val } from './ui';
+import { LevelChart } from './LevelChart';
+import { TrendIcon } from './StationList';
+import { Disclosure, Icon, RiskBadge, Val } from './ui';
 
 function ForecastBlock({ forecast }: { forecast: ForecastResponse | null }) {
   const { t, lang } = useI18n();
@@ -45,9 +50,7 @@ function ForecastBlock({ forecast }: { forecast: ForecastResponse | null }) {
       ) : (
         <div className="callout">{t(`forecast.status.${f.status}`)}</div>
       )}
-      <p className="faint" style={{ marginTop: 6 }}>
-        {t('forecast.disclaimer')}
-      </p>
+      <p className="faint note">{t('forecast.disclaimer')}</p>
     </>
   );
 }
@@ -70,139 +73,190 @@ function Factors({ explanation }: { explanation: ExplanationResponse | null }) {
   );
 }
 
-export function StationCard({ code, explanation, forecast }: { code: string; explanation: ExplanationResponse | null; forecast: ForecastResponse | null }) {
+export function StationCard({
+  code,
+  explanation,
+  forecast,
+  showHistory = false,
+}: {
+  code: string;
+  explanation: ExplanationResponse | null;
+  forecast: ForecastResponse | null;
+  showHistory?: boolean;
+}) {
   const { t, lang, reason } = useI18n();
   const { stations, live } = useStore();
   const meta = stations.find((s) => s.code === code);
   const snap = live.snapshot?.stations.find((s) => s.code === code);
-  if (!meta) return <div className="panel">{t('station.select')}</div>;
+  if (!meta) return <div className="card">{t('station.select')}</div>;
 
   const r = snap?.risk;
   const situation = r?.situation;
   const lv = levelView(snap);
   const hasData = lv.measuredCm !== null;
   const level = metersFromCm(lv.measuredCm, lang);
-  const upstreamName = situation?.upstream ? stations.find((s) => s.code === situation.upstream!.stationCode)?.name : null;
-  const localTone = situation?.localLevel === 'ABOVE_DANGER' ? 'danger' : situation?.localLevel === 'ABOVE_WARNING' ? 'warn' : 'ok';
+  const status = plainStatus(snap);
+  const upstream = hasData ? situation?.upstream : null;
+  const upstreamName = upstream ? (stations.find((s) => s.code === upstream.stationCode)?.name ?? upstream.stationCode) : null;
+  const upstreamHere = situation?.localTrend === 'RISING' || situation?.localLevel === 'ABOVE_WARNING' || situation?.localLevel === 'ABOVE_DANGER';
+  const reasons = hasData ? (r?.topReasons ?? []).filter((x) => x.code !== 'UPSTREAM_WAVE').slice(0, 2) : [];
   const qualityIssues = explanation?.dataQuality.issues ?? [];
+  const m = (cm: number | null | undefined) => {
+    const v = metersFromCm(cm, lang);
+    return v ? `${v} ${t('unit.m')}` : null;
+  };
 
   return (
-    <div className="panel card-side" aria-live="polite">
-      <div className="station-head">
+    <div className="card station-card" aria-live="polite">
+      <div className="sc-head">
         <div>
-          <h2 style={{ fontSize: 18 }}>{meta.name}</h2>
-          <div className="code">
-            {meta.code} · {t(`station.status.${meta.status}` as 'station.status.active')}
-          </div>
-          <div className="faint">{t('station.demo')}</div>
+          <div className="eyebrow">{t('dash.selected')}</div>
+          <h2 className="sc-name">{meta.name}</h2>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div className="faint">{t('risk.final')}</div>
-          <RiskBadge risk={hasData ? r!.risk : 'NO_DATA'} large />
-          {r && <div className="faint num">{t('risk.score', { score: r.score, max: r.maxScore })}</div>}
+        <div className="sc-risk">
+          <span className="faint">{t('risk.final')}</span>
+          <RiskBadge risk={status.risk} large />
         </div>
       </div>
 
-      <div className="section">
-        <h3>{t('level.local')}</h3>
-        <div className="big-level">
+      <div className="sc-level">
+        <span className="big-level num">
           <Val>{level ? `${level} ${t('unit.m')}` : null}</Val>
-        </div>
-        {hasData && (
-          <div className="faint num">
-            {Math.round(lv.measuredCm!)} {t('unit.cm')} · {t('level.measured')}: {dateTime(lv.measuredAt, lang)}
-          </div>
-        )}
-        {lv.differs && (
-          <div className="callout warn" style={{ marginTop: 8 }}>
-            {t('level.unconfirmed', { level: metersFromCm(lv.assessedCm, lang) })}
-          </div>
-        )}
-        {situation && (
-          <div className={`callout ${localTone}`} style={{ marginTop: 8 }}>
-            {t(`level.status.${situation.localLevel}`)}
-          </div>
-        )}
-        <dl className="kv" style={{ marginTop: 10 }}>
-          <dt>{t('level.warning')}</dt>
-          <dd>
-            <Val>{metersFromCm(r?.warningCm, lang) && `${metersFromCm(r?.warningCm, lang)} ${t('unit.m')}`}</Val>
-          </dd>
-          <dt>{t('level.danger')}</dt>
-          <dd>
-            <Val>{metersFromCm(r?.dangerCm, lang) && `${metersFromCm(r?.dangerCm, lang)} ${t('unit.m')}`}</Val>
-          </dd>
-          <dt>{t('trend.title')}</dt>
-          <dd>
-            {r ? t(`trend.${r.trend}`) : <Val>{null}</Val>}
-            {r?.rateCmH !== null && r?.rateCmH !== undefined && (
-              <span className="muted">
+        </span>
+        {r && hasData && (
+          <span className={`trend-chip t-${r.trend}`}>
+            <TrendIcon trend={r.trend} />
+            {t(`trend.${r.trend}`)}
+            {r.rateCmH !== null && r.trend !== 'STABLE' && (
+              <span className="num">
                 {' '}
-                · {signed(r.rateCmH, lang)} {t('unit.cmh')}
+                {signed(r.rateCmH, lang)} {t('unit.cmh')}
               </span>
             )}
-          </dd>
-          <dt>{t('level.assessedAt')}</dt>
-          <dd>
-            <Val>{dateTime(r?.measuredAt, lang)}</Val>
-            {r?.ageH ? <div className="faint">{t('level.age', { h: number(r.ageH, lang) })}</div> : null}
-          </dd>
-        </dl>
-        <p className="faint" style={{ marginTop: 6 }}>
-          {t('level.thresholdsNote')}
-        </p>
+          </span>
+        )}
+      </div>
+      {hasData && <div className="faint num">{t('card.measured', { time: dateTime(lv.measuredAt, lang) })}</div>}
+
+      <div className={`status-line tone-${status.tone}`}>
+        <span className="status-dot" aria-hidden="true" />
+        {t(status.key)}
       </div>
 
-      <div className="section">
-        <h3>{t('upstream.title')}</h3>
-        {situation?.upstream ? (
-          <div className="callout warn">
+      {lv.differs && <div className="callout warn">{t('level.unconfirmed', { level: metersFromCm(lv.assessedCm, lang) })}</div>}
+
+      {upstream && (
+        <div className="callout upstream">
+          <Icon name="info" />
+          <div>
+            <b>{t('upstream.title')}</b>
             <p>
-              {t('upstream.text', {
-                station: upstreamName ? `${upstreamName}, ${situation.upstream.stationCode}` : situation.upstream.stationCode,
-                risk: t(`risk.${situation.upstream.risk}`),
-                hours: situation.upstream.travelHours,
-              })}
-            </p>
-            <p className="faint" style={{ marginTop: 6 }}>
-              {t('upstream.note')}
+              {upstreamHere
+                ? t('card.upstreamArrived', { station: upstreamName, risk: t(`risk.${upstream.risk}`) })
+                : t('card.upstreamPlain', { station: upstreamName, risk: t(`risk.${upstream.risk}`), hours: upstream.travelHours })}
             </p>
           </div>
-        ) : (
-          <p className="muted">{meta.upstreamCode ? t('upstream.none') : t('station.upstreamNone')}</p>
-        )}
-      </div>
+        </div>
+      )}
 
-      <div className="section">
-        <h3>{t('drivers.title')}</h3>
-        {situation && <p style={{ marginBottom: 6 }}>{t(`drivers.${situation.drivers}`)}</p>}
-        <Factors explanation={explanation} />
-        <p className="faint" style={{ marginTop: 6 }}>
-          {t('risk.model')}
-        </p>
-      </div>
-
-      <div className="section">
-        <h3>{t('forecast.title')}</h3>
-        <ForecastBlock forecast={forecast} />
-      </div>
-
-      <div className="section">
-        <h3>{t('quality.title')}</h3>
-        <dl className="kv">
-          <dt>{t('quality.title')}</dt>
-          <dd>{r ? t(`quality.status.${r.dataStatus}` as 'quality.status.OK') : <Val>{null}</Val>}</dd>
-          <dt>{t('quality.confidence')}</dt>
-          <dd>{r ? t(`confidence.${r.confidence}`) : <Val>{null}</Val>}</dd>
-        </dl>
-        {qualityIssues.length > 0 && (
-          <ul className="reasons" style={{ marginTop: 6 }}>
-            {qualityIssues.map((q, i) => (
-              <li key={i}>{reason(q)}</li>
+      {reasons.length > 0 && (
+        <div className="sc-why">
+          <div className="eyebrow">{t('card.why')}</div>
+          <ul className="reasons">
+            {reasons.map((x, i) => (
+              <li key={i}>{reason(x)}</li>
             ))}
           </ul>
+        </div>
+      )}
+
+      <Disclosure title={t('card.more')} className="sc-more">
+        <section className="section">
+          <h3>{t('card.thresholds')}</h3>
+          <dl className="kv">
+            <dt>{t('level.warning')}</dt>
+            <dd>
+              <Val>{m(r?.warningCm)}</Val>
+            </dd>
+            <dt>{t('level.danger')}</dt>
+            <dd>
+              <Val>{m(r?.dangerCm)}</Val>
+            </dd>
+            <dt>{t('level.local')}</dt>
+            <dd>{situation ? t(`level.status.${situation.localLevel}`) : <Val>{null}</Val>}</dd>
+          </dl>
+          <p className="faint note">{t('level.thresholdsNote')}</p>
+        </section>
+
+        <section className="section">
+          <h3>{t('forecast.title')}</h3>
+          <ForecastBlock forecast={forecast} />
+        </section>
+
+        <section className="section">
+          <h3>{t('drivers.title')}</h3>
+          {situation && <p className="muted">{t(`drivers.${situation.drivers}`)}</p>}
+          <Factors explanation={explanation} />
+          {r && <p className="faint num note">{t('risk.score', { score: r.score, max: r.maxScore })}</p>}
+          <p className="faint note">{t('risk.model')}</p>
+        </section>
+
+        <section className="section">
+          <h3>{t('quality.title')}</h3>
+          <dl className="kv">
+            <dt>{t('quality.title')}</dt>
+            <dd>{r ? t(`quality.status.${r.dataStatus}` as 'quality.status.OK') : <Val>{null}</Val>}</dd>
+            <dt>{t('quality.confidence')}</dt>
+            <dd>{r ? t(`confidence.${r.confidence}`) : <Val>{null}</Val>}</dd>
+          </dl>
+          {qualityIssues.length > 0 && (
+            <ul className="reasons">
+              {qualityIssues.map((q, i) => (
+                <li key={i}>{reason(q)}</li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {showHistory && (
+          <section className="section">
+            <h3>{t('chart.title')}</h3>
+            <LevelChart code={code} forecast={forecast} />
+          </section>
         )}
-      </div>
+
+        <section className="section">
+          <h3>{t('card.technical')}</h3>
+          <dl className="kv">
+            <dt>{t('station.code')}</dt>
+            <dd className="num">
+              {meta.code} · {t(`station.status.${meta.status}` as 'station.status.active')}
+            </dd>
+            <dt>{t('station.coords')}</dt>
+            <dd className="num">
+              {number(meta.lat, lang, 4)}, {number(meta.lon, lang, 4)}
+            </dd>
+            <dt>{t('station.upstream')}</dt>
+            <dd>
+              {meta.upstreamCode ? `${meta.upstreamCode} · ${t('station.travel')}: ${meta.travelHours} ${t('unit.h')}` : t('station.upstreamNone')}
+            </dd>
+            <dt>{t('level.assessedAt')}</dt>
+            <dd className="num">
+              <Val>{dateTime(r?.measuredAt, lang)}</Val>
+              {r?.ageH ? <span className="faint"> · {t('level.age', { h: number(r.ageH, lang) })}</span> : null}
+            </dd>
+            {hasData && (
+              <>
+                <dt>{t('level.measured')}</dt>
+                <dd className="num">
+                  {Math.round(lv.measuredCm!)} {t('unit.cm')}
+                </dd>
+              </>
+            )}
+          </dl>
+          <p className="faint note">{t('station.demo')}</p>
+        </section>
+      </Disclosure>
     </div>
   );
 }

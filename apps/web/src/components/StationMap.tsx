@@ -1,5 +1,6 @@
 // Интерактивная карта СКО на MapLibre GL.
-//  • Подложка — стиль OpenFreeMap «dark» (без ключа; © OpenMapTiles, © OpenStreetMap). Без интернета — тёмный фон.
+//  • Подложка — стиль OpenFreeMap «positron» (светлая тема) или «dark» (тёмная), без ключа; © OpenMapTiles, © OpenStreetMap.
+//    Без интернета — однотонный фон в цвет темы. Смена темы меняет только стиль подложки — маркеры и выбор сохраняются.
 //  • Река Есиль — реальная геометрия OpenStreetMap (ODbL), упрощённая (src/map/esil-river.json).
 //  • Пунктир между станциями — схема модели распространения волны, НЕ русло реки.
 //  • Станции — HTML-маркеры-кнопки: доступны с клавиатуры, цвет и подпись риска.
@@ -15,15 +16,20 @@ import { metersFromCm } from '../lib/format';
 import { levelView } from '../lib/level';
 import river from '../map/esil-river.json';
 import { useStore } from '../state/store';
+import { usePalette, useTheme, type Palette } from '../state/theme';
+import type { Theme } from '../lib/prefs';
 
 maplibregl.setWorkerUrl(workerUrl);
 
-const STYLE_URL = 'https://tiles.openfreemap.org/styles/dark';
-const FALLBACK_STYLE: StyleSpecification = {
+const STYLE_URL: Record<Theme, string> = {
+  light: 'https://tiles.openfreemap.org/styles/positron',
+  dark: 'https://tiles.openfreemap.org/styles/dark',
+};
+const fallbackStyle = (bg: string): StyleSpecification => ({
   version: 8,
   sources: {},
-  layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#0b1220' } }],
-};
+  layers: [{ id: 'background', type: 'background', paint: { 'background-color': bg || '#0b1220' } }],
+});
 const REGION: LngLatBoundsLike = [
   [66.6, 53.55],
   [70.2, 55.45],
@@ -66,13 +72,19 @@ export function StationMap() {
   const [baseUnavailable, setBaseUnavailable] = useState(false);
   const stationsRef = useRef(stations);
   stationsRef.current = stations;
+  const { theme } = useTheme();
+  const palette = usePalette();
+  const paletteRef = useRef<Palette>(palette);
+  paletteRef.current = palette;
+  const themeRef = useRef(theme);
+  const baseRef = useRef(false);
 
   // Создание карты (один раз).
   useEffect(() => {
     if (!container.current) return;
     const map = new maplibregl.Map({
       container: container.current,
-      style: STYLE_URL,
+      style: STYLE_URL[themeRef.current],
       bounds: REGION,
       fitBoundsOptions: { padding: 30 },
       attributionControl: { compact: true, customAttribution: 'Esil river data © OpenStreetMap contributors (ODbL)' },
@@ -86,9 +98,10 @@ export function StationMap() {
     map.touchZoomRotate.disableRotation();
 
     const addOverlays = () => {
+      const c = paletteRef.current;
       if (!map.getSource('esil')) {
         map.addSource('esil', { type: 'geojson', data: river as unknown as GeoJSONSourceSpecification['data'] });
-        map.addLayer({ id: 'esil-line', type: 'line', source: 'esil', paint: { 'line-color': '#3d8fd1', 'line-width': 2.2, 'line-opacity': 0.95 } });
+        map.addLayer({ id: 'esil-line', type: 'line', source: 'esil', paint: { 'line-color': c.river, 'line-width': 2.6, 'line-opacity': 0.95 } });
       }
       if (!map.getSource('links')) {
         map.addSource('links', { type: 'geojson', data: linksGeoJson(stationsRef.current) });
@@ -96,7 +109,7 @@ export function StationMap() {
           id: 'links-line',
           type: 'line',
           source: 'links',
-          paint: { 'line-color': '#b9c4d2', 'line-width': 1.5, 'line-opacity': 0.75, 'line-dasharray': [3, 3] },
+          paint: { 'line-color': c.link, 'line-width': 1.5, 'line-opacity': 0.8, 'line-dasharray': [3, 3] },
         });
       }
     };
@@ -108,8 +121,9 @@ export function StationMap() {
     const fallback = () => {
       if (decided) return;
       decided = true;
+      baseRef.current = true;
       setBaseUnavailable(true);
-      map.setStyle(FALLBACK_STYLE);
+      map.setStyle(fallbackStyle(paletteRef.current.mapBg));
     };
     const timer = setTimeout(fallback, 15_000);
     map.on('style.load', () => {
@@ -130,6 +144,14 @@ export function StationMap() {
       mapRef.current = null;
     };
   }, []);
+
+  // Смена темы — другой стиль подложки; реку и связи заново добавит обработчик 'style.load'.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || themeRef.current === theme) return;
+    themeRef.current = theme;
+    map.setStyle(baseRef.current ? fallbackStyle(palette.mapBg) : STYLE_URL[theme], { diff: false });
+  }, [theme, palette]);
 
   // Связи между станциями и маркеры — по списку станций.
   useEffect(() => {
@@ -164,7 +186,7 @@ export function StationMap() {
       const risk = lv.measuredCm === null || !snap ? 'NO_DATA' : snap.risk.risk;
       const level = metersFromCm(lv.measuredCm, lang);
       entry.el.className = `marker r-${risk}${selected === st.code ? ' selected' : ''}`;
-      entry.el.querySelector('.mlabel')!.textContent = `${st.code} · ${level ? `${level} ${t('unit.m')}` : t('common.noData')}`;
+      entry.el.querySelector('.mlabel')!.textContent = `${st.name} · ${level ? `${level} ${t('unit.m')}` : t('common.noData')}`;
       entry.el.setAttribute('aria-label', t('map.markerLabel', { name: st.name, risk: t(`risk.${risk}`) }));
       entry.el.setAttribute('aria-pressed', String(selected === st.code));
       entry.el.onmouseenter = () => showPopup(st, snap);
@@ -207,7 +229,7 @@ export function StationMap() {
     <div className="map-wrap">
       <div ref={container} className="map" role="region" aria-label={t('map.label')} />
       <div className="map-tools">
-        <button className="btn sm" onClick={() => mapRef.current?.fitBounds(stationBounds(stations), { padding: { top: 60, bottom: 90, left: 60, right: 160 } })}>
+        <button className="btn sm map-btn" onClick={() => mapRef.current?.fitBounds(stationBounds(stations), { padding: { top: 60, bottom: 90, left: 60, right: 160 } })}>
           {t('map.fit')}
         </button>
       </div>
@@ -221,10 +243,10 @@ export function StationMap() {
           <span className="legend-line dashed" />
           {t('map.link')}
         </div>
-        <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+        <div className="row legend-risks">
           {(['LOW', 'MEDIUM', 'HIGH', 'NO_DATA'] as const).map((r) => (
-            <span key={r} className="row" style={{ gap: 4 }}>
-              <span className="legend-dot" style={{ background: `var(--risk-${r === 'NO_DATA' ? 'unknown' : r.toLowerCase()})` }} />
+            <span key={r} className="row">
+              <span className={`legend-dot r-${r}`} />
               {t(`risk.${r}`)}
             </span>
           ))}

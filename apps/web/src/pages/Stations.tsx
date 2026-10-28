@@ -1,9 +1,10 @@
 import { StationCard } from '../components/StationCard';
 import { RiskBadge, Val } from '../components/ui';
 import { useStationDetails } from '../components/useStationDetails';
-import { useI18n, type MessageKey } from '../i18n';
-import { dateTime, metersFromCm, number } from '../lib/format';
+import { useI18n } from '../i18n';
+import { dateTime, metersFromCm } from '../lib/format';
 import { levelView } from '../lib/level';
+import { plainStatus } from '../lib/status';
 import { useStore } from '../state/store';
 
 export function Stations() {
@@ -12,24 +13,21 @@ export function Stations() {
   const { explanation, forecast } = useStationDetails(selected);
 
   return (
-    <div className="dash">
-      <div className="panel" style={{ overflowX: 'auto' }}>
-        <div className="panel-head">
+    <div className="split">
+      <div className="card">
+        <div className="card-head">
           <h2>{t('stations.title')}</h2>
         </div>
-        <p className="muted" style={{ marginBottom: 12 }}>
-          {t('stations.hint')}
-        </p>
+        <p className="muted">{t('stations.hint')}</p>
+        <div className="table-wrap">
         <table className="table">
           <thead>
             <tr>
               <th>{t('stations.col.order')}</th>
               <th>{t('stations.col.station')}</th>
               <th>{t('stations.col.level')}</th>
-              <th>{t('stations.col.risk')}</th>
+              <th>{t('risk.final')}</th>
               <th>{t('stations.col.thresholds')}</th>
-              <th>{t('stations.col.upstream')}</th>
-              <th>{t('stations.col.sensors')}</th>
             </tr>
           </thead>
           <tbody>
@@ -51,12 +49,7 @@ export function Stations() {
                   <td>{i + 1}</td>
                   <td>
                     <b>{st.name}</b>
-                    <div className="faint">
-                      {st.code} · {t('station.demo')}
-                    </div>
-                    <div className="faint">
-                      {t('station.coords')}: {number(st.lat, lang, 4)}, {number(st.lon, lang, 4)}
-                    </div>
+                    <div className="faint">{st.code}</div>
                   </td>
                   <td>
                     <Val>{hasData ? `${metersFromCm(lv.measuredCm, lang)} ${t('unit.m')}` : null}</Val>
@@ -64,30 +57,19 @@ export function Stations() {
                   </td>
                   <td>
                     <RiskBadge risk={hasData ? r!.risk : 'NO_DATA'} />
+                    <div className="faint">{t(plainStatus(snap).key)}</div>
                   </td>
                   <td>
                     {metersFromCm(lvl?.warning, lang) ?? '—'} / {metersFromCm(lvl?.danger, lang) ?? '—'} {t('unit.m')}
                   </td>
-                  <td>
-                    {st.upstreamCode ? (
-                      <>
-                        {st.upstreamCode}
-                        <div className="faint">
-                          {t('station.travel')}: {st.travelHours} {t('unit.h')}
-                        </div>
-                      </>
-                    ) : (
-                      <span className="muted">{t('station.upstreamNone')}</span>
-                    )}
-                  </td>
-                  <td>{st.parameters.map((p) => t(`param.${p.code}` as MessageKey)).join(', ')}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+        </div>
       </div>
-      <StationCard code={selected} explanation={explanation} forecast={forecast} />
+      <StationCard code={selected} explanation={explanation} forecast={forecast} showHistory />
     </div>
   );
 }

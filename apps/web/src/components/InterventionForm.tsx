@@ -80,11 +80,8 @@ export function InterventionForm() {
 
   const disabled = !live_ || busy;
   return (
-    <div className="panel">
-      <div className="panel-head">
-        <h2>{t('interv.title')}</h2>
-      </div>
-      <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div className="interv">
+      <form onSubmit={submit} className="stack">
         <div className="form-row">
           <div className="field">
             <label htmlFor="iv-kind">{t('interv.type')}</label>
@@ -101,7 +98,7 @@ export function InterventionForm() {
             <select id="iv-station" value={station} onChange={(e) => setStation(e.target.value)} disabled={disabled}>
               {stations.map((s) => (
                 <option key={s.code} value={s.code}>
-                  {s.code} · {s.name}
+                  {s.name} ({s.code})
                 </option>
               ))}
             </select>
@@ -151,7 +148,7 @@ export function InterventionForm() {
           </div>
         )}
         <div className="btn-row">
-          <button type="submit" className="btn primary" disabled={disabled || !valueValid || !durationValid}>
+          <button type="submit" className="btn lg primary" disabled={disabled || !valueValid || !durationValid}>
             {t('interv.apply')}
           </button>
         </div>

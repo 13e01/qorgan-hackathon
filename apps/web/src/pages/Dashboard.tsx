@@ -1,74 +1,81 @@
+// Главная панель отвечает на три вопроса: что происходит (сводка), где опасность (карта и список станций),
+// что можно сделать (одна-две крупные кнопки). Подробности — в карточке станции по кнопке «Подробнее» и в «Аналитике».
+
 import { LevelChart } from '../components/LevelChart';
-import { SimulationPanel } from '../components/SimulationPanel';
+import { SimControls, SimProgress } from '../components/SimControls';
 import { StationCard } from '../components/StationCard';
+import { StationList } from '../components/StationList';
 import { StationMap } from '../components/StationMap';
-import { RiskBadge, Val } from '../components/ui';
+import { Icon } from '../components/ui';
 import { useStationDetails } from '../components/useStationDetails';
 import { useI18n } from '../i18n';
-import { metersFromCm, signed } from '../lib/format';
-import { levelView } from '../lib/level';
+import { overview } from '../lib/status';
+import { useDemo } from '../state/demo';
 import { useStore } from '../state/store';
-
-export function StationStrip() {
-  const { t, lang } = useI18n();
-  const { stations, live, selected, select } = useStore();
-  return (
-    <div className="strip" role="group" aria-label={t('dash.stations')}>
-      {stations.map((st) => {
-        const snap = live.snapshot?.stations.find((s) => s.code === st.code);
-        const r = snap?.risk;
-        const lv = levelView(snap);
-        const hasData = lv.measuredCm !== null;
-        const level = metersFromCm(lv.measuredCm, lang);
-        return (
-          <button key={st.code} className="st-card" aria-pressed={selected === st.code} onClick={() => select(st.code)}>
-            <div className="top">
-              <span className="name">{st.name}</span>
-              <RiskBadge risk={hasData ? r!.risk : 'NO_DATA'} />
-            </div>
-            <div className="lvl">
-              <Val>{level ? `${level} ${t('unit.m')}` : null}</Val>
-            </div>
-            <div className="sub">
-              {st.code}
-              {r?.rateCmH !== null && r?.rateCmH !== undefined && ` · ${t(`trend.${r.trend}`)} ${signed(r.rateCmH, lang)} ${t('unit.cmh')}`}
-            </div>
-            {r?.situation.localLevel && hasData && <div className="sub">{t(`level.status.${r.situation.localLevel}`)}</div>}
-            {r?.situation.upstream && (
-              <div className="upstream-flag">
-                ▲ {t('upstream.title')}: {r.situation.upstream.stationCode}
-              </div>
-            )}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 export function Dashboard() {
   const { t } = useI18n();
-  const { selected, stations, stationsError } = useStore();
+  const { selected, stations, stationsError, live, simBusy } = useStore();
+  const { demo, begin } = useDemo();
   const { explanation, forecast } = useStationDetails(selected);
   const meta = stations.find((s) => s.code === selected);
+  const ov = overview(live.snapshot, stations);
+  const demoActive = demo.phase === 'active';
 
   return (
     <div className="dash">
-      <div className="dash-left">
-        {stationsError && <div className="callout danger">{stationsError}</div>}
-        <StationMap />
-        <StationStrip />
-        <div className="panel">
-          <div className="panel-head">
-            <h2>
-              {t('chart.title')} · {meta ? `${meta.name} (${meta.code})` : ''}
-            </h2>
+      {stationsError && <div className="callout danger">{stationsError}</div>}
+
+      {!demoActive && (
+        <section className="card hero">
+          <div className="hero-text">
+            <h2 className="hero-title">{t('dash.title')}</h2>
+            <p className={`hero-status tone-${ov.tone}`}>
+              <span className="status-dot" aria-hidden="true" />
+              {t(ov.key, { station: ov.worst?.name })}
+            </p>
+            {ov.key !== 'overview.noData' && (
+              <p className="faint">{t('overview.counts', { high: ov.counts.HIGH, medium: ov.counts.MEDIUM, low: ov.counts.LOW })}</p>
+            )}
           </div>
-          <LevelChart code={selected} forecast={forecast} />
+          <div className="hero-actions">
+            <button className="btn lg primary" onClick={begin} disabled={simBusy}>
+              <Icon name="sparkle" />
+              {t('ctl.demo')}
+            </button>
+            <SimControls startPrimary={false} />
+          </div>
+          {live.snapshot?.simulation.run && (
+            <div className="hero-progress">
+              <SimProgress />
+            </div>
+          )}
+        </section>
+      )}
+
+      <div className="dash-main">
+        <div className="dash-map">
+          <StationMap />
         </div>
-        <SimulationPanel compact />
+        <div className="dash-side">
+          <StationList />
+          <StationCard code={selected} explanation={explanation} forecast={forecast} />
+        </div>
       </div>
-      <StationCard code={selected} explanation={explanation} forecast={forecast} />
+
+      <section className="card">
+        <div className="card-head">
+          <h2>
+            {t('chart.title')}
+            {meta ? ` · ${meta.name}` : ''}
+          </h2>
+          <a className="btn ghost sm" href="#/analytics">
+            {t('dash.toAnalytics')}
+            <Icon name="chevronRight" />
+          </a>
+        </div>
+        <LevelChart code={selected} forecast={forecast} />
+      </section>
     </div>
   );
 }

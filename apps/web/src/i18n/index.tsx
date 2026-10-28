@@ -4,13 +4,13 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import type { Reason } from '../api/shared';
 import { metersFromCm, number, type Lang } from '../lib/format';
+import { browserStore, KEYS, LANGS, readLang, writePref } from '../lib/prefs';
 import { en } from './en';
 import { kk } from './kk';
 import { ru, type MessageKey } from './ru';
 
 export const DICTIONARIES: Record<Lang, Record<MessageKey, string>> = { ru, kk, en };
-export const LANGS: Lang[] = ['kk', 'ru', 'en'];
-const STORAGE_KEY = 'qorgan.lang';
+export { LANGS };
 
 export type Params = Record<string, string | number | null | undefined>;
 
@@ -47,25 +47,11 @@ interface I18n {
 
 const Ctx = createContext<I18n | null>(null);
 
-function initialLang(): Lang {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'ru' || stored === 'kk' || stored === 'en') return stored;
-  } catch {
-    // недоступный localStorage — просто язык по умолчанию
-  }
-  return 'ru';
-}
-
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(initialLang);
+  const [lang, setLangState] = useState<Lang>(() => readLang(browserStore()));
   const setLang = useCallback((next: Lang) => {
     setLangState(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      // настройка не сохранится — не критично
-    }
+    writePref(browserStore(), KEYS.lang, next);
   }, []);
   const value = useMemo<I18n>(
     () => ({

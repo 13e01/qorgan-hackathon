@@ -4,7 +4,8 @@ import type { ScenarioId } from '../api/shared';
 import type { RunInfo } from '../api/types';
 import { InterventionForm } from '../components/InterventionForm';
 import { SimulationPanel } from '../components/SimulationPanel';
-import { StationStrip } from './Dashboard';
+import { StationList } from '../components/StationList';
+import { Disclosure } from '../components/ui';
 import { useI18n } from '../i18n';
 import { dateTime } from '../lib/format';
 import { useStore } from '../state/store';
@@ -23,12 +24,11 @@ function RunHistory() {
   }, [canControl, stateKey]);
   if (!canControl) return null;
   return (
-    <div className="panel" style={{ overflowX: 'auto' }}>
-      <div className="panel-head">
-        <h2>{t('sim.history')}</h2>
-      </div>
+    <div className="table-wrap">
       {!runs ? (
         <p className="muted">{t('common.loading')}</p>
+      ) : runs.length === 0 ? (
+        <p className="muted">{t('sim.noRun')}</p>
       ) : (
         <table className="table">
           <thead>
@@ -60,14 +60,24 @@ function RunHistory() {
 }
 
 export function Simulator() {
+  const { t } = useI18n();
+  const { canControl } = useStore();
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="sim-page">
       <div className="sim-grid">
         <SimulationPanel />
-        <InterventionForm />
+        <StationList />
       </div>
-      <StationStrip />
-      <RunHistory />
+      {canControl && (
+        <Disclosure className="card" title={t('interv.title')} hint={t('sim.manualHint')}>
+          <InterventionForm />
+        </Disclosure>
+      )}
+      {canControl && (
+        <Disclosure className="card" title={t('sim.history')} hint={t('sim.historyHint')}>
+          <RunHistory />
+        </Disclosure>
+      )}
     </div>
   );
 }
