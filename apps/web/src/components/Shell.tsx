@@ -9,22 +9,34 @@ import { Icon, LangSwitch, ModePill, ThemeSwitch, type IconName } from './ui';
 export const ROUTES = ['dashboard', 'outlook', 'alerts', 'stations', 'analytics', 'simulator', 'admin'] as const;
 export type Route = (typeof ROUTES)[number];
 
-const NAV: Array<{ route: Route; key: MessageKey; icon: IconName; adminOnly?: boolean }> = [
-  { route: 'dashboard', key: 'nav.dashboard', icon: 'dashboard' },
-  { route: 'outlook', key: 'nav.outlook', icon: 'timeline' },
-  { route: 'alerts', key: 'nav.alerts', icon: 'bell' },
-  { route: 'stations', key: 'nav.stations', icon: 'stations' },
-  { route: 'analytics', key: 'nav.analytics', icon: 'analytics' },
-  { route: 'simulator', key: 'nav.simulator', icon: 'simulator' },
-  { route: 'admin', key: 'nav.admin', icon: 'shield', adminOnly: true },
+type NavGroup = 'monitor' | 'data' | 'control';
+
+/** Пункты меню по группам (Eclipse): мониторинг → данные → управление. Маршруты и права — прежние. */
+export const NAV: Array<{ route: Route; key: MessageKey; icon: IconName; group: NavGroup; adminOnly?: boolean }> = [
+  { route: 'dashboard', key: 'nav.dashboard', icon: 'dashboard', group: 'monitor' },
+  { route: 'outlook', key: 'nav.outlook', icon: 'timeline', group: 'monitor' },
+  { route: 'alerts', key: 'nav.alerts', icon: 'bell', group: 'monitor' },
+  { route: 'stations', key: 'nav.stations', icon: 'stations', group: 'data' },
+  { route: 'analytics', key: 'nav.analytics', icon: 'analytics', group: 'data' },
+  { route: 'simulator', key: 'nav.simulator', icon: 'simulator', group: 'control' },
+  { route: 'admin', key: 'nav.admin', icon: 'shield', group: 'control', adminOnly: true },
 ];
+
+const GROUPS: NavGroup[] = ['monitor', 'data', 'control'];
+
+/** Видимые пункты для роли: администрирование — только администратору. */
+export function navItems(role: string | null | undefined) {
+  return NAV.filter((n) => !n.adminOnly || role === 'admin');
+}
 
 export function Logo() {
   return (
+    // Знак QORGAN: кольцо «Q» (защита, «қорған») и река, проходящая сквозь него.
     <svg className="logo" viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="9" fill="var(--accent)" />
-      <path d="M7 19c2.6-2.6 4.4-2.6 7 0s4.4 2.6 7 0 3.6-1.8 5-1.2" stroke="#fff" strokeWidth="2.4" fill="none" strokeLinecap="round" />
-      <path d="M7 13c2.6-2.6 4.4-2.6 7 0s4.4 2.6 7 0 3.6-1.8 5-1.2" stroke="#fff" strokeWidth="2" fill="none" strokeLinecap="round" opacity=".55" />
+      <rect width="32" height="32" rx="10" className="logo-bg" />
+      <circle cx="16" cy="15.5" r="8.6" fill="none" className="logo-ring" strokeWidth="2.2" />
+      <path d="M20.6 21.6l3.6 3.6" className="logo-ring" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M5.5 17c2.3-2.1 4.1-2.1 6.3 0s4.1 2.1 6.3 0 4-2 7.4-.4" fill="none" className="logo-river" strokeWidth="2.3" strokeLinecap="round" />
     </svg>
   );
 }
@@ -46,7 +58,7 @@ export function Sidebar({
   const { user, live } = useStore();
   const firstLink = useRef<HTMLAnchorElement>(null);
   const unhandled = live.snapshot?.alerts?.unhandled ?? 0;
-  const items = NAV.filter((n) => !n.adminOnly || user?.role === 'admin');
+  const items = navItems(user?.role);
 
   // В выдвижном меню фокус — на первый пункт; Esc закрывает.
   useEffect(() => {
@@ -60,7 +72,9 @@ export function Sidebar({
   return (
     <aside className="sidebar" id="sidebar" aria-label={t('nav.label')}>
       <div className="brand">
-        <Logo />
+        <a className="brand-home" href="#/" aria-label={t('nav.home')} onClick={onCloseMobile}>
+          <Logo />
+        </a>
         <div className="brand-text">
           <div className="brand-name">{t('app.title')}</div>
           <div className="brand-sub">{t('app.region')}</div>
@@ -70,24 +84,35 @@ export function Sidebar({
         </button>
       </div>
       <nav className="nav">
-        {items.map((n, i) => (
-          <a
-            key={n.route}
-            ref={i === 0 ? firstLink : undefined}
-            href={`#/${n.route}`}
-            aria-current={route === n.route ? 'page' : undefined}
-            data-tip={t(n.key)}
-            onClick={onCloseMobile}
-          >
-            <Icon name={n.icon} />
-            <span className="nav-label">{t(n.key)}</span>
-            {n.route === 'alerts' && unhandled > 0 && (
-              <span className="nav-badge num" aria-label={t('alerts.unhandledAria', { n: unhandled })}>
-                {unhandled > 99 ? '99+' : unhandled}
-              </span>
-            )}
-          </a>
-        ))}
+        {GROUPS.map((g) => {
+          const group = items.filter((n) => n.group === g);
+          if (group.length === 0) return null;
+          return (
+            <div key={g} className="nav-group" role="group" aria-labelledby={`nav-g-${g}`}>
+              <div id={`nav-g-${g}`} className="nav-group-label">
+                {t(`nav.group.${g}`)}
+              </div>
+              {group.map((n) => (
+                <a
+                  key={n.route}
+                  ref={n === items[0] ? firstLink : undefined}
+                  href={`#/${n.route}`}
+                  aria-current={route === n.route ? 'page' : undefined}
+                  data-tip={t(n.key)}
+                  onClick={onCloseMobile}
+                >
+                  <Icon name={n.icon} />
+                  <span className="nav-label">{t(n.key)}</span>
+                  {n.route === 'alerts' && unhandled > 0 && (
+                    <span className="nav-badge num" aria-label={t('alerts.unhandledAria', { n: unhandled })}>
+                      {unhandled > 99 ? '99+' : unhandled}
+                    </span>
+                  )}
+                </a>
+              ))}
+            </div>
+          );
+        })}
       </nav>
       <div className="drawer-prefs">
         <LangSwitch />
@@ -129,7 +154,12 @@ export function TopBar({ route, onMenu }: { route: Route; onMenu: () => void }) 
       <button className="icon-btn menu-btn" onClick={onMenu} aria-label={t('nav.menu')} aria-controls="sidebar">
         <Icon name="menu" />
       </button>
-      <h1 className="topbar-title">{t(`nav.${route}`)}</h1>
+      {/* Заголовок экрана (h1) — в самой странице; здесь — короткий «где я». */}
+      <div className="topbar-title">
+        <span className="topbar-crumb">QORGAN</span>
+        <span className="topbar-sep" aria-hidden="true">/</span>
+        <span>{t(`nav.${route}`)}</span>
+      </div>
       <div className="topbar-status">
         <ModePill mode={mode} />
         <span className="sim-clock num" title={t('top.techTime', { time: dateTime(now.toISOString(), lang) })}>

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import type { AlertEvent, AlertItem as Alert } from '../api/types';
 import { useI18n } from '../i18n';
+import { alertLifecycle } from '../lib/flow';
 import { dateTime } from '../lib/format';
 import { useStore } from '../state/store';
 import { Icon, RiskBadge } from './ui';
@@ -16,6 +17,24 @@ export function AlertStatusChip({ alert }: { alert: Alert }) {
       {t(`alert.status.${alert.status}`)}
       {!alert.isActive && <span className="faint"> · {t('alert.cleared')}</span>}
     </span>
+  );
+}
+
+/** Ход обработки (только отображение статуса сервера): открыто → просмотрено → обработано; «снято» — отдельно. */
+export function AlertLifecycle({ alert }: { alert: Alert }) {
+  const { t } = useI18n();
+  return (
+    <ol className="alert-life" aria-label={t('alert.lifecycle')}>
+      {alertLifecycle(alert.status).map(({ status: s, step }) => (
+        <li key={s} className={step === 'todo' ? '' : step} aria-current={step === 'current' ? 'step' : undefined}>
+          <span className="life-dot" aria-hidden="true">
+            {step !== 'todo' && <Icon name="check" />}
+          </span>
+          {t(`alert.status.${s}`)}
+        </li>
+      ))}
+      {!alert.isActive && <li className="cleared">{t('alert.stage.cleared')}</li>}
+    </ol>
   );
 }
 
@@ -84,6 +103,9 @@ export function AlertCard({ alert, compact = false, onChanged }: { alert: Alert;
   return (
     <article className={`alert-card sev-${alert.severity}${alert.isActive ? '' : ' is-cleared'}${compact ? ' compact' : ''}`}>
       <div className="alert-main">
+        <span className="alert-sev" aria-hidden="true">
+          <Icon name="warning" />
+        </span>
         <RiskBadge risk={alert.severity} />
         <div className="alert-body">
           <div className="alert-title">
@@ -99,6 +121,7 @@ export function AlertCard({ alert, compact = false, onChanged }: { alert: Alert;
         </div>
         <AlertStatusChip alert={alert} />
       </div>
+      {!compact && <AlertLifecycle alert={alert} />}
 
       {!compact && user && (
         <div className="alert-actions">

@@ -40,7 +40,6 @@ export function SimulationPanel() {
       <div className="card-head">
         <h2>{t('sim.title')}</h2>
       </div>
-      <p className="muted">{t('sim.pageHint')}</p>
 
       <fieldset className="scenario-pick" disabled={!canPick}>
         <legend className="eyebrow">{t('sim.scenario')}</legend>

@@ -24,6 +24,20 @@ export function ModePill({ mode }: { mode: DataMode | 'STALE' }) {
   );
 }
 
+/** Заголовок страницы (Eclipse): крупное название, пояснение и действия справа. Один h1 на экран. */
+export function PageHeader({ title, lead, eyebrow, children }: { title: ReactNode; lead?: ReactNode; eyebrow?: ReactNode; children?: ReactNode }) {
+  return (
+    <header className="page-head reveal">
+      <div className="page-head-text">
+        {eyebrow && <p className="eyebrow page-eyebrow">{eyebrow}</p>}
+        <h1 className="page-title">{title}</h1>
+        {lead && <p className="page-lead">{lead}</p>}
+      </div>
+      {children && <div className="page-head-actions">{children}</div>}
+    </header>
+  );
+}
+
 /** Значение или «Нет данных» — никогда не подставляем ноль вместо отсутствующих данных. */
 export function Val({ children }: { children: ReactNode }) {
   const { t } = useI18n();
@@ -80,8 +94,15 @@ export function LoginDialog() {
 
   return (
     <dialog ref={ref} onClose={() => setLoginOpen(false)} aria-labelledby="login-title">
-      <form onSubmit={submit} className="stack">
-        <h2 id="login-title">{t('auth.title')}</h2>
+      <form onSubmit={submit} className="stack login-form">
+        <div className="login-head">
+          <svg className="login-mark" viewBox="0 0 32 32" aria-hidden="true">
+            <circle cx="16" cy="16" r="11" fill="none" stroke="currentColor" strokeWidth="2.4" />
+            <path d="M6.5 17.5c2.4-2.2 4.2-2.2 6.4 0s4.2 2.2 6.4 0 4-2 6.2-.6" fill="none" stroke="var(--accent)" strokeWidth="2.4" strokeLinecap="round" />
+          </svg>
+          <h2 id="login-title">{t('auth.title')}</h2>
+          <p className="muted">{t('auth.lead')}</p>
+        </div>
         <div className="field">
           <label htmlFor="login-user">{t('auth.username')}</label>
           <input id="login-user" autoComplete="username" value={username} onChange={(e) => setUsername(e.target.value)} required />
@@ -141,6 +162,9 @@ const ICONS = {
   plus: <path d="M12 5v14M5 12h14" />,
   signal: <path d="M12 13.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7M5.6 18.4a9 9 0 0 1 0-12.8M18.4 5.6a9 9 0 0 1 0 12.8" />,
   key: <path d="M14.5 9.5a4 4 0 1 0-3.6 4l1.1 1.1h2v2h2v2h3v-3l-4.9-4.9c.3-.4.4-.8.4-1.2zM8.5 9.5h.01" />,
+  expand: <path d="M4.5 9V4.5H9M15 4.5h4.5V9M19.5 15v4.5H15M9 19.5H4.5V15" />,
+  clock: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7.5V12l3 2" />,
+  warning: <path d="M12 4 2.8 19.5h18.4zM12 10v4.5M12 17v.5" />,
 } as const;
 
 export type IconName = keyof typeof ICONS;

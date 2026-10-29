@@ -12,5 +12,21 @@ export default defineConfig({
       '/ws': { target: 'ws://127.0.0.1:3000', ws: true },
     },
   },
-  build: { outDir: 'dist', sourcemap: false, chunkSizeWarningLimit: 2000 },
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    // Крупные библиотеки — отдельными файлами: главная страница их не загружает, а рабочая система кэширует их
+    // независимо от своего кода. Порог предупреждения о размере — стандартный (500 КБ); его превышает только
+    // готовый файл maplibre-gl (≈ 1,1 МБ), который разделить нельзя, — он загружается только в рабочей системе.
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            { name: 'maplibre', test: /node_modules[\\/]maplibre-gl/ },
+            { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
 });

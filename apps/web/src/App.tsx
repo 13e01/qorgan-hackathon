@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { DemoPanel } from './components/DemoPanel';
 import { ROUTES, Sidebar, TopBar, type Route } from './components/Shell';
 import { LoginDialog, Notices } from './components/ui';
@@ -27,6 +28,7 @@ function useRoute(): Route {
   return route;
 }
 
+/** Рабочая система (все разделы, кроме главной страницы). Загружается отдельным файлом сборки из Root.tsx. */
 export function App() {
   const { t } = useI18n();
   const { connection, live } = useStore();
@@ -38,6 +40,11 @@ export function App() {
     document.title = `QORGAN — ${t(`nav.${route}`)}`;
   }, [route, t]);
   useEffect(() => setMenuOpen(false), [route]);
+  // Новый раздел открывается сверху (прокручивается область содержимого, а не окно).
+  const contentRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [route]);
 
   const toggle = useCallback(() => {
     setCollapsed((c) => {
@@ -50,6 +57,9 @@ export function App() {
   return (
     <OutlookProvider>
     <div className={`app${collapsed ? ' is-collapsed' : ''}${menuOpen ? ' menu-open' : ''}`}>
+      <a className="skip-link" href="#content" onClick={(e) => (e.preventDefault(), contentRef.current?.focus())}>
+        {t('common.skip')}
+      </a>
       <Sidebar route={route} collapsed={collapsed} onToggle={toggle} mobileOpen={menuOpen} onCloseMobile={closeMenu} />
       <div className="scrim" onClick={closeMenu} aria-hidden="true" />
       <div className="main">
@@ -59,8 +69,8 @@ export function App() {
             {t('conn.lost')}
           </div>
         )}
-        <main className="content">
-          <DemoPanel />
+        <main className="content" id="content" ref={contentRef} tabIndex={-1}>
+          <DemoPanel compact={route !== 'dashboard'} />
           {route === 'dashboard' && <Dashboard />}
           {route === 'stations' && <Stations />}
           {route === 'analytics' && <Analytics />}

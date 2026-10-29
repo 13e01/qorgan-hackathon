@@ -6,7 +6,7 @@ import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveCont
 import { api } from '../api/client';
 import type { Crossing, OutlookPoint, OutlookResult, StationOutlook, StationVerification } from '../api/shared';
 import type { EvaluationContext } from '../api/types';
-import { Disclosure, Icon, Val } from '../components/ui';
+import { Disclosure, Icon, PageHeader, Val } from '../components/ui';
 import { useI18n } from '../i18n';
 import { dateTime, metersFromCm, number, shortDateTime } from '../lib/format';
 import { useStore } from '../state/store';
@@ -329,9 +329,8 @@ export function Outlook() {
 
   if (!user) {
     return (
-      <section className="card">
-        <h2>{t('nav.outlook')}</h2>
-        <p className="muted">{t('outlook.lead')}</p>
+      <section className="page-stack">
+        <PageHeader title={t('outlook.title')} lead={t('outlook.lead')} />
         <div className="callout info">
           {t('outlook.loginRequired')}{' '}
           <button className="btn sm" onClick={() => setLoginOpen(true)}>
@@ -344,13 +343,15 @@ export function Outlook() {
 
   return (
     <div className="page-stack">
+      <PageHeader title={t('outlook.title')} lead={t('outlook.lead')}>
+        {outlook && <span className="pill demo num">{t('outlook.asOf', { time: dateTime(outlook.asOf, lang) })}</span>}
+      </PageHeader>
       <section className="card">
         <div className="card-head">
           <div>
-            <h2>{t('outlook.title')}</h2>
-            <p className="muted">{t('outlook.lead')}</p>
+            <h2>{t('outlook.board')}</h2>
+            <p className="muted">{t('outlook.boardHint')}</p>
           </div>
-          {outlook && <span className="pill demo num">{t('outlook.asOf', { time: dateTime(outlook.asOf, lang) })}</span>}
         </div>
         {error && <div className="callout danger">{error}</div>}
         {!outlook ? (

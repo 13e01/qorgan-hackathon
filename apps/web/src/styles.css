@@ -1,11 +1,14 @@
-/* QORGAN — дизайн-система (T4.1).
-   Принципы: ясность, воздух, крупные области нажатия, сдержанные акценты. Цвет риска всегда дублируется текстом.
-   Все цвета — токены; тема переключается атрибутом data-theme на <html> (light | dark). */
+/* QORGAN ECLIPSE — дизайн-система «Живая река».
+   Принципы: карта и река — главный объект; ясность важнее украшений; цвет риска всегда дублируется текстом.
+   Все цвета — токены этого файла; тема — атрибут data-theme на <html> (light | dark).
+   Слой компонентов Eclipse — src/eclipse.css (подключается после этого файла), описание — docs/ECLIPSE_DESIGN.md. */
 
 /* ---------- Токены: общие ---------- */
 :root {
-  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', Inter, Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+  /* Типографика: один шрифт Inter (переменный, оси wght + opsz, кириллица с казахскими буквами), без загрузки из сети. */
+  --font: 'Inter Variable', Inter, 'Segoe UI Variable Text', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+  --font-display: 'Inter Variable', Inter, 'Segoe UI Variable Display', 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+  --mono: ui-monospace, 'Cascadia Mono', 'SF Mono', Consolas, monospace;
 
   --fs-xs: 12px;
   --fs-sm: 13px;
@@ -14,7 +17,11 @@
   --fs-lg: 18px;
   --fs-xl: 22px;
   --fs-2xl: 28px;
-  --fs-3xl: 34px;
+  --fs-3xl: 36px;
+  /* Крупные заголовки и ключевые значения — плавно по ширине экрана. */
+  --fs-display: clamp(28px, 1.2rem + 1.6vw, 46px);
+  --fs-title: clamp(22px, 0.9rem + 0.9vw, 30px);
+  --fs-value: clamp(30px, 1.1rem + 1.4vw, 42px);
 
   --sp-1: 4px;
   --sp-2: 8px;
@@ -23,135 +30,166 @@
   --sp-5: 20px;
   --sp-6: 24px;
   --sp-8: 32px;
+  --sp-10: 40px;
 
   --r-sm: 8px;
-  --r-md: 10px;
-  --r-lg: 14px;
-  --r-xl: 18px;
+  --r-md: 11px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+  --r-2xl: 26px;
   --r-pill: 999px;
 
   --control-sm: 32px;
   --control: 40px;
   --control-lg: 48px;
 
-  --sidebar-w: 248px;
-  --sidebar-w-collapsed: 72px;
-  --topbar-h: 64px;
+  --sidebar-w: 252px;
+  --sidebar-w-collapsed: 76px;
+  --topbar-h: 60px;
 
+  /* Движение: короткие «объясняющие» переходы; prefers-reduced-motion отключает их (см. eclipse.css). */
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --dur-fast: 120ms;
-  --dur: 220ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-fast: 140ms;
+  --dur: 240ms;
+  --dur-slow: 420ms;
+  --dur-scene: 700ms;
+
+  /* Брейкпоинты (для справки; в @media используются числа): 1680 / 1440 / 1366 / 1180 / 900 / 767 / 480. */
+  --bp-phone: 767px;
+
+  /* Счётчик непрочитанных предупреждений: белый текст на тёмно-красном (контраст ≥ 4,5:1 в обеих темах). */
+  --badge-alert: #c21d1d;
 }
 
-/* ---------- Светлая тема (по умолчанию) ---------- */
+/* ---------- Светлая тема (по умолчанию): нейтральный светлый фон, чистая типографика, простор ---------- */
 :root,
 :root[data-theme='light'] {
   color-scheme: light;
-  --bg: #f4f5f7;
+  --bg: #f4f6f8;
+  --bg-glow: radial-gradient(1200px 600px at 12% -10%, rgba(10, 102, 214, 0.07), transparent 60%), radial-gradient(900px 500px at 100% 0%, rgba(18, 150, 200, 0.05), transparent 60%);
   --surface: #ffffff;
-  --surface-2: #f3f4f7;
-  --surface-3: #e8eaef;
+  --surface-2: #f2f4f7;
+  --surface-3: #e7eaef;
   --surface-raised: #ffffff;
-  --border: #e4e7ec;
-  --border-strong: #d0d5dd;
-  --text: #101828;
-  --text-2: #475467;
-  --text-3: #667085;
-  --accent: #0b6bcb;
-  --accent-hover: #0959aa;
-  --accent-soft: rgba(11, 107, 203, 0.09);
-  --accent-ring: rgba(11, 107, 203, 0.35);
-  --btn-primary: #0b6bcb;
-  --btn-primary-hover: #0959aa;
+  --glass: rgba(255, 255, 255, 0.82);
+  --glass-strong: rgba(255, 255, 255, 0.94);
+  --glass-border: rgba(15, 23, 42, 0.08);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --blur: saturate(1.4) blur(14px);
+  --border: #e3e7ec;
+  --border-strong: #cdd3dc;
+  --text: #0b1117;
+  --text-2: #435061;
+  --text-3: #5f6b7a;
+  --accent: #0a66d6;
+  --accent-hover: #0855b3;
+  --accent-soft: rgba(10, 102, 214, 0.08);
+  --accent-ring: rgba(10, 102, 214, 0.32);
+  --accent-glow: 0 8px 24px -8px rgba(10, 102, 214, 0.55);
+  --btn-primary: #0b1117;
+  --btn-primary-hover: #1e2935;
   --on-accent: #ffffff;
-  --demo: #6941c6;
-  --demo-bg: #f4f0ff;
+  --demo: #5b3fd0;
+  --demo-bg: #f2eeff;
 
-  --risk-low: #087443;
-  --risk-medium: #9a5b00;
-  --risk-high: #c01f1f;
-  --risk-unknown: #667085;
-  --risk-low-fill: #17b26a;
-  --risk-medium-fill: #f5a524;
-  --risk-high-fill: #e5473d;
-  --risk-unknown-fill: #98a2b3;
-  --risk-low-bg: #e7f6ee;
-  --risk-medium-bg: #fef2dc;
-  --risk-high-bg: #fdecea;
-  --risk-unknown-bg: #eef0f3;
+  --risk-low: #087a55;
+  --risk-medium: #9a5800;
+  --risk-high: #c21d1d;
+  --risk-unknown: #5f6b7a;
+  --risk-low-fill: #12a37a;
+  --risk-medium-fill: #f2a516;
+  --risk-high-fill: #e2433a;
+  --risk-unknown-fill: #9aa4b2;
+  --risk-low-bg: #e5f5ef;
+  --risk-medium-bg: #fdf1d9;
+  --risk-high-bg: #fdeceb;
+  --risk-unknown-bg: #eef1f4;
 
-  --chart-grid: #e9ecf1;
-  --chart-axis: #667085;
-  --chart-measured: #0b6bcb;
-  --chart-forecast: #7a5af8;
-  --chart-band: rgba(122, 90, 248, 0.16);
-  --river: #2e90e6;
-  --map-link: #667085;
-  --map-bg: #eef1f5;
-  --station-1: #0b6bcb;
-  --station-2: #7a5af8;
-  --station-3: #dd2590;
-  --station-4: #0e9384;
+  --chart-grid: #e8ebf0;
+  --chart-axis: #5f6b7a;
+  --chart-measured: #0a66d6;
+  --chart-forecast: #6d4ee6;
+  --chart-band: rgba(109, 78, 230, 0.16);
+  --river: #1f86e0;
+  --river-glow: rgba(31, 134, 224, 0.28);
+  --map-link: #5f6b7a;
+  --map-bg: #edf1f5;
+  --station-1: #0a66d6;
+  --station-2: #6d4ee6;
+  --station-3: #d0287f;
+  --station-4: #0b8a7d;
 
-  --shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.05);
-  --shadow-md: 0 1px 3px rgba(16, 24, 40, 0.06), 0 6px 18px rgba(16, 24, 40, 0.06);
-  --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.14);
-  --scrim: rgba(16, 24, 40, 0.4);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -6px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 24px 48px -12px rgba(15, 23, 42, 0.18);
+  --shadow-float: 0 1px 1px rgba(15, 23, 42, 0.04), 0 12px 32px -8px rgba(15, 23, 42, 0.16);
+  --scrim: rgba(11, 17, 23, 0.42);
 }
 
-/* ---------- Тёмная тема ---------- */
+/* ---------- Тёмная тема: глубокий графит, сдержанное «жидкое стекло», холодный голубой ---------- */
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #0c0e12;
-  --surface: #15181e;
-  --surface-2: #1c2028;
-  --surface-3: #262b35;
-  --surface-raised: #1c2028;
-  --border: #262b34;
-  --border-strong: #343b48;
-  --text: #eef1f6;
-  --text-2: #b0b8c5;
-  --text-3: #8b94a3;
-  --accent: #5aa5ff;
-  --accent-hover: #7cb8ff;
-  --accent-soft: rgba(90, 165, 255, 0.13);
-  --accent-ring: rgba(90, 165, 255, 0.45);
-  --btn-primary: #2b72d6;
-  --btn-primary-hover: #3a80e3;
-  --on-accent: #ffffff;
-  --demo: #c4b5fd;
-  --demo-bg: rgba(167, 139, 250, 0.12);
+  --bg: #07090c;
+  --bg-glow: radial-gradient(1100px 620px at 10% -12%, rgba(76, 170, 255, 0.10), transparent 60%), radial-gradient(900px 520px at 105% -5%, rgba(60, 210, 220, 0.06), transparent 60%);
+  --surface: #0f1318;
+  --surface-2: #161b22;
+  --surface-3: #212833;
+  --surface-raised: #171c24;
+  --glass: rgba(16, 20, 26, 0.72);
+  --glass-strong: rgba(17, 21, 28, 0.9);
+  --glass-border: rgba(255, 255, 255, 0.085);
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --blur: saturate(1.5) blur(16px);
+  --border: #1f262f;
+  --border-strong: #2f3845;
+  --text: #eef2f7;
+  --text-2: #b1bac7;
+  --text-3: #8d97a5;
+  --accent: #6cc0ff;
+  --accent-hover: #93d1ff;
+  --accent-soft: rgba(108, 192, 255, 0.12);
+  --accent-ring: rgba(108, 192, 255, 0.45);
+  --accent-glow: 0 0 0 1px rgba(108, 192, 255, 0.35), 0 10px 32px -6px rgba(108, 192, 255, 0.45);
+  --btn-primary: #e9f5ff;
+  --btn-primary-hover: #ffffff;
+  --on-accent: #06121f;
+  --demo: #c9b8ff;
+  --demo-bg: rgba(170, 145, 255, 0.12);
 
-  --risk-low: #4fc98d;
-  --risk-medium: #f4bb4f;
-  --risk-high: #ff7a70;
-  --risk-unknown: #9aa3b1;
-  --risk-low-fill: #3fbf7f;
-  --risk-medium-fill: #f0b43c;
-  --risk-high-fill: #f0564f;
-  --risk-unknown-fill: #7d8b9b;
-  --risk-low-bg: rgba(79, 201, 141, 0.13);
-  --risk-medium-bg: rgba(244, 187, 79, 0.13);
-  --risk-high-bg: rgba(255, 122, 112, 0.14);
-  --risk-unknown-bg: rgba(154, 163, 177, 0.13);
+  --risk-low: #4fd6a4;
+  --risk-medium: #f6c15a;
+  --risk-high: #ff7d73;
+  --risk-unknown: #9aa4b2;
+  --risk-low-fill: #2fc38e;
+  --risk-medium-fill: #f2b43a;
+  --risk-high-fill: #f2564d;
+  --risk-unknown-fill: #6f7b8b;
+  --risk-low-bg: rgba(79, 214, 164, 0.12);
+  --risk-medium-bg: rgba(246, 193, 90, 0.13);
+  --risk-high-bg: rgba(255, 125, 115, 0.14);
+  --risk-unknown-bg: rgba(154, 164, 178, 0.12);
 
-  --chart-grid: #262c36;
-  --chart-axis: #8b94a3;
-  --chart-measured: #5aa5ff;
+  --chart-grid: #1d242d;
+  --chart-axis: #8d97a5;
+  --chart-measured: #6cc0ff;
   --chart-forecast: #b9a6ff;
   --chart-band: rgba(185, 166, 255, 0.18);
-  --river: #4a9be8;
-  --map-link: #9aa3b1;
-  --map-bg: #0e1117;
-  --station-1: #5aa5ff;
+  --river: #4fb3ff;
+  --river-glow: rgba(79, 179, 255, 0.35);
+  --map-link: #8d97a5;
+  --map-bg: #0a0d11;
+  --station-1: #6cc0ff;
   --station-2: #b98cff;
   --station-3: #f472b6;
   --station-4: #5eead4;
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 1px 3px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.25);
-  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.5);
-  --scrim: rgba(0, 0, 0, 0.55);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px -8px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 28px 56px -12px rgba(0, 0, 0, 0.65);
+  --shadow-float: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 16px 40px -10px rgba(0, 0, 0, 0.7);
+  --scrim: rgba(0, 0, 0, 0.6);
 }
 
 /* ---------- База ---------- */
@@ -2916,8 +2954,9 @@ button.rb-row:hover {
   }
 }
 
+/* Прототипы главной (.cine) управляют движением сами: data-still — по этой же настройке или переключателю. */
 @media (prefers-reduced-motion: reduce) {
-  * {
+  :not(.cine *) {
     transition: none !important;
     animation: none !important;
   }

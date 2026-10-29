@@ -28,7 +28,7 @@ export function parse<S extends z.ZodType>(schema: S, data: unknown): z.infer<S>
 }
 
 /** Все ошибки отдаются в одном формате `{ error: { code, message } }`; внутренние детали не раскрываются. */
-export function registerErrorHandlers(app: FastifyInstance, options: { spaIndexHtml?: string } = {}): void {
+export function registerErrorHandlers(app: FastifyInstance, options: { spaIndexHtml?: () => string | undefined } = {}): void {
   app.setErrorHandler((err: FastifyError | AppError, request, reply) => {
     if (err instanceof AppError) {
       return reply.status(err.statusCode).send(body(err.code, err.message));
@@ -43,10 +43,12 @@ export function registerErrorHandlers(app: FastifyInstance, options: { spaIndexH
 
   app.setNotFoundHandler((request, reply) => {
     // Собранный интерфейс — одностраничное приложение: неизвестные пути вне /api и /ws отдают index.html.
+    // Путь с расширением (/assets/index-….js) — это файл: если его нет, честный 404, а не страница. Иначе браузер
+    // получал бы HTML вместо модуля JS («MIME type text/html») и показывал пустой экран.
     const isApi = request.url.startsWith('/api') || request.url.startsWith('/ws');
-    if (options.spaIndexHtml && request.method === 'GET' && !isApi) {
-      return reply.type('text/html; charset=utf-8').send(options.spaIndexHtml);
-    }
+    const isFile = /\.[A-Za-z0-9]+$/.test(request.url.split('?')[0]!);
+    const html = request.method === 'GET' && !isApi && !isFile ? options.spaIndexHtml?.() : undefined;
+    if (html) return reply.type('text/html; charset=utf-8').header('cache-control', 'no-cache').send(html);
     reply.status(404).send(body('NOT_FOUND', `Маршрут не найден: ${request.method} ${request.url}`));
   });
 }

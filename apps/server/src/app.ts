@@ -62,8 +62,18 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   const { db } = options;
   const now = options.now ?? (() => new Date());
   const app = Fastify({ logger: options.logger ?? false, bodyLimit: 1_048_576, trustProxy: options.trustProxy ? trustOneHop : false });
+  // index.html читается при каждом запросе (файл маленький): после новой сборки (`npm run build`) уже работающий
+  // сервер сразу отдаёт страницу с новыми именами файлов JS. Раньше он запоминал её при старте и ссылался на
+  // удалённые файлы — в браузере был чёрный экран.
   const indexFile = options.webRoot ? join(options.webRoot, 'index.html') : null;
-  const spaIndexHtml = indexFile && existsSync(indexFile) ? readFileSync(indexFile, 'utf8') : undefined;
+  const spaIndexHtml = () => {
+    if (!indexFile) return undefined;
+    try {
+      return readFileSync(indexFile, 'utf8');
+    } catch {
+      return undefined;
+    }
+  };
   registerErrorHandlers(app, { spaIndexHtml });
   await registerAuth(app, db, options.sessionSecret);
   await app.register(websocket);
@@ -153,9 +163,15 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(async (scope) => {
     scope.get('/ws', { websocket: true }, (socket) => hub.add(socket));
   });
-  if (spaIndexHtml && options.webRoot) {
-    await app.register(fastifyStatic, { root: options.webRoot, index: false, wildcard: false });
-    app.get('/', (_request, reply) => reply.type('text/html; charset=utf-8').send(spaIndexHtml));
+  if (options.webRoot && existsSync(options.webRoot)) {
+    // wildcard: файл ищется на диске при каждом запросе, а не по списку, составленному при старте (новые файлы
+    // сборки тоже отдаются). Нет файла — обработчик «не найдено» выше: страница для путей интерфейса, 404 для файлов.
+    await app.register(fastifyStatic, { root: options.webRoot, index: false, wildcard: true });
+    app.get('/', (_request, reply) => {
+      const html = spaIndexHtml();
+      if (!html) return reply.callNotFound();
+      return reply.type('text/html; charset=utf-8').header('cache-control', 'no-cache').send(html);
+    });
   }
   return app;
 }

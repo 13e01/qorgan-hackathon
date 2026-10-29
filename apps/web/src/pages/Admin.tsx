@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api/client';
 import type { AdminStation, AdminUser, AuditItem, DeviceLogItem, SourceItem } from '../api/types';
 import type { RiskConfig } from '../api/shared';
-import { Icon, Segmented } from '../components/ui';
+import { Icon, PageHeader, Segmented } from '../components/ui';
 import { useI18n, type MessageKey } from '../i18n';
 import { dateTime, metersFromCm } from '../lib/format';
 import { useStore } from '../state/store';
@@ -651,6 +651,7 @@ export function Admin() {
   }
   return (
     <div className="page-stack">
+      <PageHeader title={t('nav.admin')} lead={t('admin.lead')} />
       <Segmented
         className="tabs"
         label={t('nav.admin')}

@@ -1,6 +1,6 @@
 import { ExternalSensors } from '../components/ExternalSensors';
 import { StationCard } from '../components/StationCard';
-import { RiskBadge, Val } from '../components/ui';
+import { PageHeader, RiskBadge, Val } from '../components/ui';
 import { useStationDetails } from '../components/useStationDetails';
 import { useI18n } from '../i18n';
 import { dateTime, metersFromCm } from '../lib/format';
@@ -14,12 +14,14 @@ export function Stations() {
   const { explanation, forecast } = useStationDetails(selected);
 
   return (
+    <div className="page-stack">
+      <PageHeader title={t('stations.title')} lead={t('stations.lead')} />
     <div className="split">
       <div className="page-stack">
       <ExternalSensors />
       <div className="card">
         <div className="card-head">
-          <h2>{t('stations.title')}</h2>
+          <h2>{t('dash.where')}</h2>
         </div>
         <p className="muted">{t('stations.hint')}</p>
         <div className="table-wrap">
@@ -74,6 +76,7 @@ export function Stations() {
       </div>
       </div>
       <StationCard code={selected} explanation={explanation} forecast={forecast} showHistory />
+    </div>
     </div>
   );
 }

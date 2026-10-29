@@ -57,6 +57,8 @@ curl.exe -fs "http://127.0.0.1:%QPORT%/api/health" >nul 2>nul
 if errorlevel 1 goto port_taken
 echo.
 echo QORGAN is ALREADY RUNNING on port %QPORT% - a second copy is not started.
+call :same_build %QPORT%
+if "%BUILD_OK%"=="0" goto server_stale
 rem The production server also serves the website; under "npm run dev" it is served by Vite on 5173.
 curl.exe -fs "http://127.0.0.1:%QPORT%/" >nul 2>nul
 if errorlevel 1 goto already_dev
@@ -70,6 +72,16 @@ echo It was started with "npm run dev": the website is http://localhost:5173/
 start "" "http://localhost:5173/"
 pause
 exit /b 0
+
+:server_stale
+echo.
+echo ERROR: port %QPORT% is used by a QORGAN copy that serves a DIFFERENT website build.
+echo It was started from another folder, or it is an old server that kept an older build.
+echo The browser would show a black screen.
+echo Stop that copy: run stop-demo.bat in its folder, or close the window where
+echo "npm run dev" or "npm start" is running. Then run this file again.
+pause
+exit /b 1
 
 :port_taken
 echo.
@@ -116,6 +128,17 @@ rem :read_env KEY DEFAULT  - value of KEY from .env (or DEFAULT) into ENV_VALUE
 set "ENV_VALUE=%~2"
 if not exist ".env" exit /b 0
 for /f "usebackq eol=# tokens=1,* delims==" %%A in (".env") do if /i "%%A"=="%~1" set "ENV_VALUE=%%B"
+exit /b 0
+
+rem :same_build PORT  - BUILD_OK=0 if the server on PORT serves a different index.html than apps\web\dist of THIS folder
+rem (a copy from another folder, or an old server that remembered an older build). The browser would show a black screen.
+:same_build
+set "BUILD_OK=1"
+if not exist "apps\web\dist\index.html" exit /b 0
+curl.exe -fs "http://127.0.0.1:%~1/" -o "%TEMP%\qorgan-served-index.html" >nul 2>nul
+if errorlevel 1 exit /b 0
+fc /b "%TEMP%\qorgan-served-index.html" "apps\web\dist\index.html" >nul 2>nul
+if errorlevel 1 set "BUILD_OK=0"
 exit /b 0
 
 rem :port_busy PORT  - PORT_BUSY=1 if a program listens on PORT

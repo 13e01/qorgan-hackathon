@@ -2,7 +2,7 @@
 
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { LevelChart } from '../components/LevelChart';
-import { RiskBadge } from '../components/ui';
+import { PageHeader, RiskBadge } from '../components/ui';
 import { useStationDetails } from '../components/useStationDetails';
 import { useI18n } from '../i18n';
 import { dateTime, metersFromCm, shortDateTime } from '../lib/format';
@@ -94,6 +94,7 @@ export function Analytics() {
 
   return (
     <div className="page">
+      <PageHeader title={t('nav.analytics')} lead={t('analytics.lead')} />
       <div className="card">
         <div className="card-head">
           <h2>{t('analytics.wave')}</h2>

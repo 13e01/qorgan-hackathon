@@ -69,6 +69,11 @@ export interface Palette {
   river: string;
   link: string;
   mapBg: string;
+  riverGlow: string;
+  riskLow: string;
+  riskMedium: string;
+  riskHigh: string;
+  riskUnknown: string;
   stations: string[];
 }
 
@@ -83,6 +88,11 @@ const VARS = {
   river: '--river',
   link: '--map-link',
   mapBg: '--map-bg',
+  riverGlow: '--river-glow',
+  riskLow: '--risk-low-fill',
+  riskMedium: '--risk-medium-fill',
+  riskHigh: '--risk-high-fill',
+  riskUnknown: '--risk-unknown-fill',
 } as const;
 
 export function usePalette(): Palette {
