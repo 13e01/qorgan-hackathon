@@ -116,6 +116,21 @@ export function riverFlow(stations: StationMeta[], snapshot: Snapshot | null): R
   return { nodes, links, hasThreat: links.some((l) => l.state !== 'calm') };
 }
 
+/** Классы, которыми интерфейс управляет у маркера станции; все остальные (maplibregl-marker и др.) — чужие. */
+const OWN_MARKER_CLASS = /^(marker|r-[A-Z_]+|selected|is-next|label-left)$/;
+
+/**
+ * Новый список классов маркера станции. MapLibre при создании маркера ставит элементу свои классы
+ * (`maplibregl-marker` — position: absolute, `maplibregl-marker-anchor-*`) и больше их не восстанавливает. Поэтому
+ * свои классы заменяются, а чужие сохраняются: без них маркер выпадает в обычный поток страницы — смещается
+ * относительно своей координаты и при масштабировании уходит за край карты.
+ */
+export function markerClassName(current: string, state: { risk: string; selected: boolean; next: boolean; left: boolean }): string {
+  const foreign = current.split(/\s+/).filter((c) => c && !OWN_MARKER_CLASS.test(c));
+  const own = ['marker', `r-${state.risk}`, state.selected && 'selected', state.next && 'is-next', state.left && 'label-left'].filter(Boolean) as string[];
+  return [...own, ...foreign].join(' ');
+}
+
 /** Подпись маркера на карте — слева, если прямо севернее есть другая станция (иначе подписи соседей перекрываются). По координатам из БД. */
 export function labelOnLeft(st: Pick<StationMeta, 'code' | 'lat' | 'lon'>, all: Array<Pick<StationMeta, 'code' | 'lat' | 'lon'>>): boolean {
   return all.some((o) => o.code !== st.code && o.lat > st.lat && o.lat - st.lat < 0.45 && Math.abs(o.lon - st.lon) < 0.8);

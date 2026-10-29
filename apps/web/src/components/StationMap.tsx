@@ -16,7 +16,7 @@ import type { SnapshotStation, StationMeta } from '../api/types';
 import { useI18n } from '../i18n';
 import { metersFromCm } from '../lib/format';
 import { levelView } from '../lib/level';
-import { labelOnLeft, riverFlow, type FlowLink } from '../lib/flow';
+import { labelOnLeft, markerClassName, riverFlow, type FlowLink } from '../lib/flow';
 import river from '../map/esil-river.json';
 import { useStore } from '../state/store';
 import { usePalette, useTheme, type Palette } from '../state/theme';
@@ -269,7 +269,7 @@ export function StationMap() {
       const risk = lv.measuredCm === null || !snap ? 'NO_DATA' : snap.risk.risk;
       const level = metersFromCm(lv.measuredCm, lang);
       const isNext = nextCode === st.code;
-      entry.el.className = `marker r-${risk}${selected === st.code ? ' selected' : ''}${isNext ? ' is-next' : ''}${entry.el.dataset.side === 'left' ? ' label-left' : ''}`;
+      entry.el.className = markerClassName(entry.el.className, { risk, selected: selected === st.code, next: isNext, left: entry.el.dataset.side === 'left' });
       entry.el.querySelector('.m-name')!.textContent = st.name;
       entry.el.querySelector('.m-level')!.textContent = level ? `${level} ${t('unit.m')}` : t('common.noData');
       // Без измерений «Нет данных» пишется один раз (в уровне), риск не повторяет его.

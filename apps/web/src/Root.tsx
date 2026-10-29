@@ -14,12 +14,14 @@ type Loaded = { welcome?: ComponentType<{ returning: boolean }>; app?: Component
 const loaded: Loaded = {};
 const pending: Partial<Record<Part, Promise<void>>> = {};
 
+// Каждый import() — в своей функции: в общем тернарном выражении сборщик подключал зависимости (в том числе CSS
+// карты maplibre-gl.css) только к одной из двух загрузок, и рабочая система открывалась без стилей карты.
+const importApp = () => import('./App').then((m) => void (loaded.app = m.App));
+const importWelcome = () => import('./welcome').then((m) => void (loaded.welcome = m.WelcomeApp));
+
 /** Загрузить часть интерфейса один раз (повторные вызовы возвращают тот же промис). */
 export function preload(part: Part): Promise<void> {
-  pending[part] ??=
-    part === 'app'
-      ? import('./App').then((m) => void (loaded.app = m.App))
-      : import('./welcome').then((m) => void (loaded.welcome = m.WelcomeApp));
+  pending[part] ??= part === 'app' ? importApp() : importWelcome();
   // Файл не загрузился (например, сервер перезапускается) — следующая попытка начнётся заново.
   pending[part].catch(() => delete pending[part]);
   return pending[part]!;

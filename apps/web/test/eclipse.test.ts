@@ -6,7 +6,7 @@ import type { SimState, Snapshot, SnapshotStation, StationMeta } from '../src/ap
 import { NAV, navItems, ROUTES } from '../src/components/Shell';
 import { DICTIONARIES } from '../src/i18n';
 import { ru } from '../src/i18n/ru';
-import { alertLifecycle, labelOnLeft, riverFlow } from '../src/lib/flow';
+import { alertLifecycle, labelOnLeft, markerClassName, riverFlow } from '../src/lib/flow';
 import { memoryStore, readThemePref, resolveTheme, KEYS } from '../src/lib/prefs';
 
 const CODES = ['QRG-01', 'QRG-02', 'QRG-03', 'QRG-04'];
@@ -133,6 +133,22 @@ describe('«Живая река» — состояние связей тольк
 });
 
 describe('подписи станций на карте', () => {
+  it('обновление маркера по данным сохраняет классы MapLibre (position: absolute, привязка к точке)', () => {
+    const created = 'marker r-NO_DATA maplibregl-marker maplibregl-marker-anchor-left';
+    const next = markerClassName(created, { risk: 'HIGH', selected: true, next: true, left: false });
+    const set = next.split(' ');
+    for (const c of ['maplibregl-marker', 'maplibregl-marker-anchor-left', 'marker', 'r-HIGH', 'selected', 'is-next']) expect(set, c).toContain(c);
+    expect(set).not.toContain('r-NO_DATA');
+    // Повторное обновление: свои классы заменяются, а не копятся; чужие не теряются.
+    const again = markerClassName(next + ' maplibregl-marker-occluded', { risk: 'LOW', selected: false, next: false, left: true }).split(' ');
+    expect(again.filter((c) => c.startsWith('r-'))).toEqual(['r-LOW']);
+    expect(again).not.toContain('selected');
+    expect(again).toContain('label-left');
+    expect(again).toContain('maplibregl-marker');
+    expect(again).toContain('maplibregl-marker-occluded');
+    expect(new Set(again).size).toBe(again.length);
+  });
+
   it('подпись слева, только если прямо севернее есть соседняя станция', () => {
     const petro = { code: 'P', lat: 54.8825, lon: 69.1172 };
     const sokol = { code: 'S', lat: 55.1165, lon: 69.2103 };
