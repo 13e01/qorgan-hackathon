@@ -1,27 +1,27 @@
 {
  "before": {
-  "input_i": "-16.49",
+  "input_i": "-16.47",
   "input_tp": "-3.47",
-  "input_lra": "2.80",
-  "input_thresh": "-27.44",
-  "output_i": "-15.85",
+  "input_lra": "2.60",
+  "input_thresh": "-27.38",
+  "output_i": "-15.84",
   "output_tp": "-2.38",
-  "output_lra": "2.30",
-  "output_thresh": "-26.75",
+  "output_lra": "2.10",
+  "output_thresh": "-26.71",
   "normalization_type": "dynamic",
-  "target_offset": "-0.15"
+  "target_offset": "-0.16"
  },
  "after": {
-  "input_i": "-16.47",
+  "input_i": "-16.42",
   "input_tp": "-3.49",
-  "input_lra": "2.50",
-  "input_thresh": "-27.35",
-  "output_i": "-15.98",
-  "output_tp": "-3.00",
-  "output_lra": "2.50",
-  "output_thresh": "-26.86",
+  "input_lra": "2.10",
+  "input_thresh": "-27.29",
+  "output_i": "-15.95",
+  "output_tp": "-3.02",
+  "output_lra": "2.10",
+  "output_thresh": "-26.82",
   "normalization_type": "linear",
-  "target_offset": "-0.02"
+  "target_offset": "-0.05"
  },
  "voLines": [
   {
@@ -47,12 +47,12 @@
   {
    "id": "L05",
    "start": 18.7,
-   "end": 25.88
+   "end": 25.97
   },
   {
    "id": "L06",
-   "start": 26.2,
-   "end": 28.44
+   "start": 26.45,
+   "end": 28.69
   },
   {
    "id": "L07",
@@ -81,8 +81,8 @@
   },
   {
    "id": "L12",
-   "start": 53.9,
-   "end": 59.17
+   "start": 53.5,
+   "end": 59.2
   }
  ],
  "sfx": [
@@ -113,7 +113,7 @@
   },
   {
    "name": "клик alert-confirm",
-   "t": 52.6,
+   "t": 52.5,
    "db": -12
   },
   {
@@ -128,12 +128,12 @@
   },
   {
    "name": "окно датчика",
-   "t": 25.7,
+   "t": 26,
    "db": -20
   },
   {
    "name": "сигнал: средний",
-   "t": 33,
+   "t": 33.1,
    "db": -15
   },
   {
@@ -148,12 +148,12 @@
   },
   {
    "name": "whoosh → главная",
-   "t": 53.2,
+   "t": 53.4,
    "db": -17
   },
   {
    "name": "логотип",
-   "t": 56.9,
+   "t": 57,
    "db": -10
   }
  ]

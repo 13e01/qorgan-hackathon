@@ -21,7 +21,7 @@
 | Eclipse: визуальная система | ✅ готово (ветка eclipse) | карта в центре, «Живая река», новая навигация, темы, демо-сцена, ход обработки предупреждений — [ECLIPSE_DESIGN.md](ECLIPSE_DESIGN.md) |
 | Eclipse Cinematic: прототипы главной | ✅ выбор сделан | выбрана B — Hydro Future; A и C убраны из интерфейса — [ECLIPSE_CINEMATIC_CONCEPTS.md](ECLIPSE_CINEMATIC_CONCEPTS.md) |
 | Hydro Future: финальная главная | ✅ готово (ветка eclipse) | главная по адресу `/`, разделы 01–05, переход в систему, KZ/RU/EN, телефон; 305 Node + 19 Python тестов — [HYDRO_FUTURE_FINAL.md](HYDRO_FUTURE_FINAL.md) |
-| Ролик System Briefing (60 с) | ✅ собран (ветка production/qorgan-system-briefing) | запись настоящего QORGAN на изолированном стенде, голос Microsoft Neural, оригинальные музыка и SFX — [production/system-briefing](../production/system-briefing/README.md); звук на слух не проверен |
+| Ролик System Briefing (60 с) | ✅ v2 собран (ветка production/qorgan-system-briefing) | светлая тема, утверждённый текст; запись настоящего QORGAN на изолированном стенде, голос Microsoft Neural, оригинальные музыка и SFX — [production/system-briefing](../production/system-briefing/README.md); звук на слух не проверен |
 | T7–T9 | частично | сравнение прогонов и сценарий сбоев (T7/T8) не делались; языки и адаптивность — сделаны |
 
 ## Проверка окружения (2026-10-28)
@@ -50,6 +50,7 @@
 - Файлы: `production/system-briefing/` (сценарий, раскадровка, источники, отчёт QA, скрипты съёмки, монтажа, звука и сборки). MP4 — `production/system-briefing/renders/QORGAN_SYSTEM_BRIEFING_FINAL.mp4`, в git не хранится.
 - Проверено: ffprobe — 60,000 с, 1920×1080, 60 к/с, H.264 + AAC; −16 LUFS, пик −3 dBTP; blackdetect/freezedetect — без неожиданных чёрных и застывших кадров; просмотр по кадрам (начало, середина, конец) и контактные листы всего ролика.
 - Не проверено: звук на слух (произношение «QORGAN», «MQTT»), показ на проекторе.
+- v2 (тег `qorgan-system-briefing-v2`): рабочая система снята в светлой теме (включена настоящим щелчком по «Светлая»), Hydro Future — тёмная; текст диктора утверждён пользователем, монтаж перестроен под него; проверки те же (60,000 с, 1920×1080, 60 к/с, −16 LUFS, без застывших и неожиданных чёрных кадров).
 
 ### 2026-10-29 — Исправлены маркеры станций на карте (смещение и исчезновение при масштабе)
 

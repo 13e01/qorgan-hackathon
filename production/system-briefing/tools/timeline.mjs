@@ -8,7 +8,7 @@ import { join, resolve } from 'node:path';
 import { ROOT } from './stand.mjs';
 
 const BASE = resolve(ROOT, 'production/system-briefing');
-const TAKE = process.argv[2] ?? 'take2';
+const TAKE = process.argv[2] ?? 'take5';
 const FPS = 60;
 const DURATION = 60;
 
@@ -44,14 +44,14 @@ const S = {
 const O = {
   openClick: 10.0,
   stationClick: 15.0,
-  danger: 28.3,
-  medium: 32.9,
+  danger: 28.6,
+  medium: 33.0,
   high: 37.5,
   navClick: 44.2,
   viewClick: 48.3,
-  confirmClick: 52.6,
-  finaleIn: 53.8,
-  end: 56.8,
+  confirmClick: 52.5,
+  finaleIn: 54.0,
+  end: 56.9,
 };
 
 // Главный отрезок: от главной панели до журнала. Карта времени — пары [время ролика, время записи].

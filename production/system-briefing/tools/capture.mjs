@@ -114,8 +114,21 @@ try {
   // Тот же запрос, что делает кнопка «Начать новый чистый прогон» в разделе «Внешние датчики».
   const ext = await page.eval(`fetch('/api/simulation/external/start',{method:'POST',headers:{'content-type':'application/json'},body:'{}'}).then(r=>r.status)`);
   if (ext !== 200) throw new Error(`приём датчиков: ${ext}`);
+  // Светлая тема рабочей системы — настоящим щелчком по кнопке «Светлая» в шапке (до начала записи).
+  // Hydro Future остаётся тёмной при любой теме.
+  await page.navigate(stand.url + '/');
+  await page.eval(`location.hash = '#/dashboard'`);
+  await waitFor(page, `!!document.querySelector('.marker .m-name')`);
+  const light = await centerOf(`[...document.querySelectorAll('button')].find(b => (b.getAttribute('aria-label') || b.title || '').includes('Светлая') && b.getBoundingClientRect().width > 0)`);
+  await moveTo(light.x, light.y, 300);
+  await click('theme-light');
+  await waitFor(page, `document.documentElement.dataset.theme === 'light'`);
+  log('theme', await page.eval(`({ theme: document.documentElement.dataset.theme, bg: getComputedStyle(document.body).backgroundColor, stored: localStorage.getItem('qorgan.theme') })`));
   // Датчик успевает передать несколько обычных показаний (≈3,2 м), чтобы у станции был уровень до подъёма.
   await sleep(9000);
+  // Щелчок по теме был до записи — в журнал монтажа он не нужен.
+  events.splice(0, events.length, ...events.filter((e) => e.type === 'sensor' || e.type === 'theme'));
+  cursor = { x: W / 2, y: H / 2 };
 
   await page.navigate(stand.url + '/');
   await waitFor(page, `!!document.querySelector('.hf-ctas .hf-btn.primary')`);
