@@ -2073,3 +2073,308 @@ dialog::backdrop {
     transform: scale(0.99);
   }
 }
+
+/* ---------- QORGAN Sentinel: «Почему такой риск?» (ML), звук, Telegram. Только токены; дизайн Eclipse не меняется ---------- */
+.ml-explain {
+  display: grid;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--surface-2);
+}
+
+.ml-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.ml-title {
+  margin: 2px 0 0;
+  font-size: var(--fs-md);
+  font-weight: 700;
+}
+
+.ml-score {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2) var(--sp-3);
+}
+
+.ml-prob {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+
+.ml-agree {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  background: var(--risk-low-bg);
+  color: var(--risk-low);
+}
+
+.ml-agree .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.ml-agree.agree-ML_HIGHER,
+.ml-agree.agree-ML_LOWER {
+  background: var(--risk-medium-bg);
+  color: var(--risk-medium);
+}
+
+.ml-summary {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.ml-factors {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ml-factor {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  grid-template-areas: 'dir text value' 'dir bar bar';
+  align-items: center;
+  gap: 4px var(--sp-2);
+}
+
+.ml-dir {
+  grid-area: dir;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-pill);
+}
+
+.ml-dir .icon {
+  width: 14px;
+  height: 14px;
+}
+
+.ml-factor.dir-up .ml-dir {
+  background: var(--risk-high-bg);
+  color: var(--risk-high);
+}
+
+.ml-factor.dir-down .ml-dir {
+  background: var(--risk-low-bg);
+  color: var(--risk-low);
+}
+
+.ml-factor-text {
+  grid-area: text;
+  display: grid;
+  min-width: 0;
+}
+
+.ml-factor-label {
+  font-size: var(--fs-xs);
+  color: var(--text-3);
+}
+
+.ml-factor-say {
+  font-size: var(--fs-sm);
+}
+
+.ml-factor-value {
+  grid-area: value;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ml-bar {
+  grid-area: bar;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--surface-3);
+  overflow: hidden;
+}
+
+.ml-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.ml-factor.dir-up .ml-bar span {
+  background: var(--risk-high-fill);
+}
+
+.ml-factor.dir-down .ml-bar span {
+  background: var(--risk-low-fill);
+}
+
+.sound-ctl {
+  position: relative;
+}
+
+.sound-btn.is-on {
+  color: var(--accent);
+}
+
+.sound-btn.is-locked {
+  color: var(--risk-medium);
+}
+
+.sound-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  display: grid;
+  gap: var(--sp-3);
+  width: min(320px, calc(100vw - 32px));
+  padding: var(--sp-4);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r-lg);
+  background: var(--glass-strong);
+  box-shadow: var(--shadow-float);
+  backdrop-filter: var(--blur);
+  color: var(--text);
+}
+
+.sound-pop .callout,
+.sound-pop .note {
+  margin: 0;
+}
+
+.switch-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  cursor: pointer;
+}
+
+.switch-row > span {
+  display: grid;
+  gap: 2px;
+  font-size: var(--fs-sm);
+}
+
+.switch-row input {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.switch-row.compact {
+  align-items: center;
+}
+
+.switch-row.compact input {
+  margin-top: 0;
+}
+
+.sound-volume {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+
+.sound-volume input {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.sound-test {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-sm);
+}
+
+.tg-panel .disclosure-body {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.tg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.tg-code p {
+  margin: 0 0 4px;
+}
+
+.tg-code-value {
+  font-family: var(--mono);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  user-select: all;
+}
+
+.tg-sub {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+}
+
+.tg-links {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tg-links li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2) var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+}
+
+.tg-status {
+  font-weight: 600;
+}
+
+.tg-status.st-SENT {
+  color: var(--risk-low);
+}
+
+.tg-status.st-FAILED {
+  color: var(--risk-high);
+}
+
+.tg-status.st-PENDING,
+.tg-status.st-SUPPRESSED {
+  color: var(--text-3);
+}
+
+.ml-head .source-tag {
+  flex: none;
+  white-space: nowrap;
+}

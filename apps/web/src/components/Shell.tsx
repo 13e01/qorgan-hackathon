@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useI18n, type MessageKey } from '../i18n';
 import { dateTime } from '../lib/format';
 import { useStore } from '../state/store';
+import { SoundControl } from './SoundControl';
 import { Icon, LangSwitch, ModePill, ThemeSwitch, type IconName } from './ui';
 
 export const ROUTES = ['dashboard', 'outlook', 'alerts', 'stations', 'analytics', 'simulator', 'admin'] as const;
@@ -176,6 +177,7 @@ export function TopBar({ route, onMenu }: { route: Route; onMenu: () => void }) 
         </span>
       </div>
       <div className="topbar-tools">
+        <SoundControl />
         <LangSwitch />
         <ThemeSwitch />
         {user ? (

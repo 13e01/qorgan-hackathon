@@ -81,6 +81,92 @@ export interface SnapshotStation {
     topReasons: Reason[];
     situation: RiskSituation;
   };
+  /** Параллельная оценка QORGAN Sentinel на тот же момент (null — модели нет или оценок ещё нет). */
+  ml?: MlStationView | null;
+}
+
+// ---- QORGAN Sentinel (apps/server/src/ml/service.ts, routes/ml.ts) ----
+
+export type MlAgreement = 'AGREE' | 'ML_HIGHER' | 'ML_LOWER';
+export type MlModelStatus = 'READY' | 'DISABLED' | 'MISSING' | 'INVALID';
+
+export interface MlStationView {
+  tick: number;
+  asOf: string;
+  modelVersion: string;
+  status: 'OK' | 'INSUFFICIENT_DATA' | 'ERROR';
+  category: RiskLevel | null;
+  pDanger: number | null;
+  pWarning: number | null;
+  rulesRisk: RiskLevel;
+  agreement: MlAgreement | null;
+  computedAt: string;
+}
+
+export interface MlContribution {
+  feature: string;
+  value: number | null;
+  shap: number;
+}
+
+export interface MlResult {
+  status: 'OK' | 'INSUFFICIENT_DATA';
+  modelVersion: string;
+  horizonH: number;
+  category: RiskLevel | null;
+  pDanger: number | null;
+  pWarning: number | null;
+  thresholds: { danger: number; warning: number };
+  explained: 'danger' | 'warning' | null;
+  baseValue: number | null;
+  contributions: MlContribution[];
+  features: Record<string, number | null>;
+}
+
+export interface MlResponse {
+  station: { id: number; code: string; name: string };
+  runId: number | null;
+  context: EvaluationContext;
+  model: { status: MlModelStatus; problem: string | null; version: string | null; horizonH: number | null; demo: boolean };
+  rules: { risk: RiskLevel; score: number; maxScore: number; model: string };
+  assessment: (MlStationView & { result: MlResult | null }) | null;
+}
+
+// ---- Telegram (apps/server/src/routes/telegram.ts) ----
+
+export interface TelegramLink {
+  id: number;
+  chat: string;
+  tgUsername: string | null;
+  username: string;
+  lang: string;
+  subscribed: boolean;
+  linkedAt: string;
+}
+
+export interface TelegramOutboxRow {
+  id: number;
+  chatId: string;
+  kind: 'ALERT' | 'TEST';
+  alertId: number | null;
+  stationCode: string | null;
+  tick: number | null;
+  status: 'PENDING' | 'SENT' | 'FAILED' | 'SUPPRESSED';
+  attempts: number;
+  lastError: string | null;
+  createdAt: string;
+  sentAt: string | null;
+}
+
+export interface TelegramStatus {
+  enabled: boolean;
+  state: 'DISABLED' | 'STARTING' | 'ONLINE' | 'ERROR';
+  lastError: string | null;
+  botUsername: string | null;
+  allowlist: boolean;
+  cooldownTicks: number;
+  links: TelegramLink[];
+  outbox: TelegramOutboxRow[];
 }
 
 export type AlertSeverity = 'MEDIUM' | 'HIGH';
@@ -123,6 +209,7 @@ export interface Snapshot {
   alerts?: { runId: number | null; active: AlertItem[]; unhandled: number };
   devices?: DeviceSummary[];
   mqtt?: 'disabled' | 'connecting' | 'connected' | 'offline';
+  mlModel?: { status: MlModelStatus; version: string | null };
 }
 
 /** Внешнее устройство (apps/server/src/mqtt/devices.ts). */

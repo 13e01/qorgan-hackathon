@@ -1,11 +1,14 @@
 // QORGAN Sentinel: Telegram-уведомления. Настоящий Telegram не вызывается — fetch заменён заглушкой.
+// Циклы бота в тестах — на ручном планировщике: отправку вызывает только сам тест (dispatchOnce / pollOnce).
 // Полный путь: симулятор → POST /api/telemetry → риск → предупреждение HIGH → telegram_outbox → sendMessage.
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { FetchFn } from '../src/telegram/client';
 import type { TelegramOptions } from '../src/telegram/service';
 import { renderAlert, type AlertPayload } from '../src/telegram/messages';
-import { simApp, TestClock } from './sim-helpers';
+import { ManualScheduler, simApp, TestClock } from './sim-helpers';
+
+vi.setConfig({ testTimeout: 60_000 });
 
 const START = '2026-04-10T00:00:00.000Z';
 const TOKEN = '123456:TEST-TOKEN-never-sent-anywhere';
@@ -47,7 +50,7 @@ class FakeTelegram {
 async function setup(extra: Partial<TelegramOptions> = {}) {
   const tg = new FakeTelegram();
   const clock = new TestClock();
-  const s = await simApp(undefined, clock, { telegram: { token: TOKEN, publicUrl: 'http://localhost:3000', allowedChatIds: null, fetch: tg.fetch, ...extra } });
+  const s = await simApp(undefined, clock, { telegram: { token: TOKEN, publicUrl: 'http://localhost:3000', allowedChatIds: null, fetch: tg.fetch, ...extra }, telegramScheduler: new ManualScheduler() });
   // getMe выполняется при старте; дождаться его.
   await new Promise((r) => setImmediate(r));
   const service = s.app.telegram;
@@ -238,7 +241,7 @@ describe('Telegram: уведомления о высоком риске', () => 
       throw Object.assign(new Error('offline'), { name: 'TypeError' });
     };
     const clock = new TestClock();
-    const s = await simApp(undefined, clock, { telegram: { token: TOKEN, publicUrl: null, allowedChatIds: null, fetch: tgDown, maxAttempts: 3 } });
+    const s = await simApp(undefined, clock, { telegram: { token: TOKEN, publicUrl: null, allowedChatIds: null, fetch: tgDown, maxAttempts: 3 }, telegramScheduler: new ManualScheduler() });
     await new Promise((r) => setImmediate(r));
     s.db.prepare("INSERT INTO telegram_links (chat_id, user_id, lang, subscribed, linked_at, updated_at) VALUES ('42', 1, 'ru', 1, 'x', 'x')").run();
     await s.post('/api/telegram/test', {});

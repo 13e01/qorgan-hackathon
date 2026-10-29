@@ -165,6 +165,8 @@ const ICONS = {
   expand: <path d="M4.5 9V4.5H9M15 4.5h4.5V9M19.5 15v4.5H15M9 19.5H4.5V15" />,
   clock: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7.5V12l3 2" />,
   warning: <path d="M12 4 2.8 19.5h18.4zM12 10v4.5M12 17v.5" />,
+  sound: <path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3zM15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />,
+  soundOff: <path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3zM16 9.5l5 5M21 9.5l-5 5" />,
 } as const;
 
 export type IconName = keyof typeof ICONS;

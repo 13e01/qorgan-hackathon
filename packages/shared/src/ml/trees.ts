@@ -52,75 +52,78 @@ export function predictProba(booster: Booster, x: readonly number[]): number {
   return sigmoid(predictMargin(booster, x));
 }
 
-interface PathElement {
-  feature: number;
-  zero: number;
-  one: number;
-  w: number;
-}
+// Путь TreeSHAP хранится в общих массивах (как в эталонной реализации на C++): у узла на глубине d свой участок
+// длиной d + 1, следующий участок начинается сразу за ним. Так на каждый узел не создаются новые объекты.
+const PATH_SIZE = 4096;
+const pFeature = new Int32Array(PATH_SIZE);
+const pZero = new Float64Array(PATH_SIZE);
+const pOne = new Float64Array(PATH_SIZE);
+const pW = new Float64Array(PATH_SIZE);
 
-function extendPath(path: PathElement[], depth: number, zero: number, one: number, feature: number): void {
-  path[depth] = { feature, zero, one, w: depth === 0 ? 1 : 0 };
+function extendPath(o: number, depth: number, zero: number, one: number, feature: number): void {
+  pFeature[o + depth] = feature;
+  pZero[o + depth] = zero;
+  pOne[o + depth] = one;
+  pW[o + depth] = depth === 0 ? 1 : 0;
   for (let i = depth - 1; i >= 0; i -= 1) {
-    path[i + 1]!.w += (one * path[i]!.w * (i + 1)) / (depth + 1);
-    path[i]!.w = (zero * path[i]!.w * (depth - i)) / (depth + 1);
+    pW[o + i + 1]! += (one * pW[o + i]! * (i + 1)) / (depth + 1);
+    pW[o + i] = (zero * pW[o + i]! * (depth - i)) / (depth + 1);
   }
 }
 
-function unwindPath(path: PathElement[], depth: number, index: number): void {
-  const { one, zero } = path[index]!;
-  let next = path[depth]!.w;
+function unwindPath(o: number, depth: number, index: number): void {
+  const one = pOne[o + index]!;
+  const zero = pZero[o + index]!;
+  let next = pW[o + depth]!;
   for (let i = depth - 1; i >= 0; i -= 1) {
     if (one !== 0) {
-      const tmp = path[i]!.w;
-      path[i]!.w = (next * (depth + 1)) / ((i + 1) * one);
-      next = tmp - (path[i]!.w * zero * (depth - i)) / (depth + 1);
+      const tmp = pW[o + i]!;
+      pW[o + i] = (next * (depth + 1)) / ((i + 1) * one);
+      next = tmp - (pW[o + i]! * zero * (depth - i)) / (depth + 1);
     } else {
-      path[i]!.w = (path[i]!.w * (depth + 1)) / (zero * (depth - i));
+      pW[o + i] = (pW[o + i]! * (depth + 1)) / (zero * (depth - i));
     }
   }
   for (let i = index; i < depth; i += 1) {
-    path[i]!.feature = path[i + 1]!.feature;
-    path[i]!.zero = path[i + 1]!.zero;
-    path[i]!.one = path[i + 1]!.one;
+    pFeature[o + i] = pFeature[o + i + 1]!;
+    pZero[o + i] = pZero[o + i + 1]!;
+    pOne[o + i] = pOne[o + i + 1]!;
   }
 }
 
-function unwoundPathSum(path: PathElement[], depth: number, index: number): number {
-  const { one, zero } = path[index]!;
-  let next = path[depth]!.w;
+function unwoundPathSum(o: number, depth: number, index: number): number {
+  const one = pOne[o + index]!;
+  const zero = pZero[o + index]!;
+  let next = pW[o + depth]!;
   let total = 0;
   for (let i = depth - 1; i >= 0; i -= 1) {
     if (one !== 0) {
       const tmp = (next * (depth + 1)) / ((i + 1) * one);
       total += tmp;
-      next = path[i]!.w - (tmp * zero * (depth - i)) / (depth + 1);
+      next = pW[o + i]! - (tmp * zero * (depth - i)) / (depth + 1);
     } else if (zero !== 0) {
-      total += path[i]!.w / zero / ((depth - i) / (depth + 1));
+      total += pW[o + i]! / zero / ((depth - i) / (depth + 1));
     }
   }
   return total;
 }
 
-function treeShap(
-  tree: Tree,
-  x: readonly number[],
-  phi: number[],
-  node: number,
-  parent: PathElement[],
-  depthIn: number,
-  zero: number,
-  one: number,
-  feature: number,
-): void {
-  const path = parent.slice(0, depthIn).map((e) => ({ ...e }));
+function treeShap(tree: Tree, x: readonly number[], phi: number[], node: number, parent: number, depthIn: number, zero: number, one: number, feature: number): void {
+  // Участок пути этого узла — сразу за участком родителя; копируются элементы родителя 0…depthIn.
+  const o = parent + depthIn + 1;
+  if (o + depthIn + 1 >= PATH_SIZE) throw new Error('tree too deep for TreeSHAP buffer');
+  for (let i = 0; i <= depthIn; i += 1) {
+    pFeature[o + i] = pFeature[parent + i]!;
+    pZero[o + i] = pZero[parent + i]!;
+    pOne[o + i] = pOne[parent + i]!;
+    pW[o + i] = pW[parent + i]!;
+  }
   let depth = depthIn;
-  extendPath(path, depth, zero, one, feature);
+  extendPath(o, depth, zero, one, feature);
   if (tree.left[node] === -1) {
     for (let i = 1; i <= depth; i += 1) {
-      const w = unwoundPathSum(path, depth, i);
-      const e = path[i]!;
-      phi[e.feature]! += w * (e.one - e.zero) * tree.threshold[node]!;
+      const w = unwoundPathSum(o, depth, i);
+      phi[pFeature[o + i]!]! += w * (pOne[o + i]! - pZero[o + i]!) * tree.threshold[node]!;
     }
     return;
   }
@@ -133,15 +136,15 @@ function treeShap(
   let inZero = 1;
   let inOne = 1;
   let index = 0;
-  for (; index <= depth; index += 1) if (path[index]!.feature === split) break;
+  for (; index <= depth; index += 1) if (pFeature[o + index] === split) break;
   if (index !== depth + 1) {
-    inZero = path[index]!.zero;
-    inOne = path[index]!.one;
-    unwindPath(path, depth, index);
+    inZero = pZero[o + index]!;
+    inOne = pOne[o + index]!;
+    unwindPath(o, depth, index);
     depth -= 1;
   }
-  treeShap(tree, x, phi, hot, path, depth + 1, hotZero * inZero, inOne, split);
-  treeShap(tree, x, phi, cold, path, depth + 1, coldZero * inZero, 0, split);
+  treeShap(tree, x, phi, hot, o, depth + 1, hotZero * inZero, inOne, split);
+  treeShap(tree, x, phi, cold, o, depth + 1, coldZero * inZero, 0, split);
 }
 
 /** Ожидаемое значение дерева (взвешенное по покрытию среднее листьев). */
@@ -159,7 +162,8 @@ function expectedValue(tree: Tree, node = 0): number {
 export function shapValues(booster: Booster, x: readonly number[], nFeatures: number): number[] {
   const phi = new Array<number>(nFeatures + 1).fill(0);
   for (const tree of booster.trees) {
-    treeShap(tree, x, phi, 0, [], 0, 1, 1, -1);
+    // Корень: «родительский» участок — позиция 0, участок корня начинается с 1 (как в C++-реализации).
+    treeShap(tree, x, phi, 0, 0, 0, 1, 1, -1);
     phi[nFeatures]! += expectedValue(tree);
   }
   phi[nFeatures]! += booster.baseMargin;

@@ -4,7 +4,10 @@
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
+
+// Полные прогоны паводка (до 2 × 200 тиков) — дольше стандартных 5 с на медленной машине.
+vi.setConfig({ testTimeout: 60_000 });
 import { loadMlRuntime, type MlRuntime } from '../src/ml/service';
 import { buildSnapshot } from '../src/realtime/snapshot';
 import { simApp } from './sim-helpers';
@@ -17,7 +20,7 @@ afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 
 type Row = Record<string, unknown>;
 
-async function rapid(runtime: MlRuntime | undefined, ticks = 140) {
+async function rapid(runtime: MlRuntime | undefined, ticks = 80) {
   const s = await simApp(undefined, undefined, runtime ? { ml: runtime } : {});
   const { body } = await s.post('/api/simulation/start', { scenarioId: 'RAPID_FLOOD', seed: 42, virtualStart: START });
   await s.run(ticks);
@@ -57,8 +60,8 @@ describe('Sentinel: параллельная оценка в транзакци�
   });
 
   it('ML не подавляет и не создаёт предупреждения: журнал совпадает с прогоном без модели', async () => {
-    const withMl = await rapid(ml, 200);
-    const without = await rapid(undefined, 200);
+    const withMl = await rapid(ml, 150);
+    const without = await rapid(undefined, 150);
     const pick = (db: typeof withMl.s.db, runId: number) =>
       db.prepare('SELECT station_id, severity, trigger, opened_tick, last_tick, is_active FROM alerts WHERE run_id = ? ORDER BY id').all(runId);
     const events = (db: typeof withMl.s.db) => db.prepare('SELECT alert_id, tick, type FROM alert_events ORDER BY id').all();

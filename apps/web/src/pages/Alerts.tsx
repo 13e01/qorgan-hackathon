@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import type { AlertItem, AlertStatus } from '../api/types';
 import { AlertCard } from '../components/AlertItem';
+import { TelegramPanel } from '../components/TelegramPanel';
 import { PageHeader, Segmented } from '../components/ui';
 import { useI18n } from '../i18n';
 import { useStore } from '../state/store';
@@ -144,6 +145,7 @@ export function Alerts() {
           </div>
         )}
       </section>
+      {user && <TelegramPanel />}
       <p className="faint note">{t('alerts.rules')}</p>
     </div>
   );
