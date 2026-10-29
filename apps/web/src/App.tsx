@@ -12,6 +12,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Outlook, OutlookProvider } from './pages/Outlook';
 import { Simulator } from './pages/Simulator';
 import { Stations } from './pages/Stations';
+import { SoundProvider } from './state/sound';
 import { useStore } from './state/store';
 
 function useRoute(): Route {
@@ -56,6 +57,7 @@ export function App() {
 
   return (
     <OutlookProvider>
+    <SoundProvider>
     <div className={`app${collapsed ? ' is-collapsed' : ''}${menuOpen ? ' menu-open' : ''}`}>
       <a className="skip-link" href="#content" onClick={(e) => (e.preventDefault(), contentRef.current?.focus())}>
         {t('common.skip')}
@@ -83,6 +85,7 @@ export function App() {
       <LoginDialog />
       <Notices />
     </div>
+    </SoundProvider>
     </OutlookProvider>
   );
 }

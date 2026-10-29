@@ -285,4 +285,74 @@ CREATE TABLE device_run_results (
 );
 `,
   },
+  {
+    // QORGAN Sentinel (docs/SENTINEL_ARCHITECTURE.md). Только добавление таблиц:
+    //  • ml_assessments — параллельная оценка ML на каждый тик (не влияет на risk_assessments и alerts);
+    //  • telegram_* — привязка чатов к пользователям, одноразовые коды привязки (только хеш),
+    //    очередь уведомлений с защитой от повторов (dedup_key) и состоянием отправки, смещение getUpdates.
+    version: 5,
+    name: 'sentinel',
+    sql: `
+CREATE TABLE ml_assessments (
+  run_id        INTEGER NOT NULL REFERENCES sim_runs(id) ON DELETE CASCADE,
+  station_id    INTEGER NOT NULL REFERENCES stations(id),
+  tick          INTEGER NOT NULL,
+  as_of         TEXT    NOT NULL,
+  model_version TEXT    NOT NULL,
+  status        TEXT    NOT NULL CHECK (status IN ('OK', 'INSUFFICIENT_DATA', 'ERROR')),
+  category      TEXT    CHECK (category IS NULL OR category IN ('LOW', 'MEDIUM', 'HIGH')),
+  p_danger      REAL,
+  p_warning     REAL,
+  rules_risk    TEXT    NOT NULL CHECK (rules_risk IN ('LOW', 'MEDIUM', 'HIGH')),
+  agreement     TEXT    CHECK (agreement IS NULL OR agreement IN ('AGREE', 'ML_HIGHER', 'ML_LOWER')),
+  result_json   TEXT    NOT NULL,
+  computed_at   TEXT    NOT NULL,
+  PRIMARY KEY (run_id, station_id, tick)
+);
+
+CREATE TABLE telegram_links (
+  id         INTEGER PRIMARY KEY,
+  chat_id    TEXT    NOT NULL UNIQUE,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tg_username TEXT,
+  lang       TEXT    NOT NULL DEFAULT 'ru' CHECK (lang IN ('ru', 'kk', 'en')),
+  subscribed INTEGER NOT NULL DEFAULT 1 CHECK (subscribed IN (0, 1)),
+  linked_at  TEXT    NOT NULL,
+  updated_at TEXT    NOT NULL
+);
+CREATE INDEX telegram_links_user ON telegram_links(user_id);
+
+CREATE TABLE telegram_link_codes (
+  code_hash  TEXT    PRIMARY KEY,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at TEXT    NOT NULL,
+  used_at    TEXT,
+  created_at TEXT    NOT NULL
+);
+
+CREATE TABLE telegram_outbox (
+  id              INTEGER PRIMARY KEY,
+  chat_id         TEXT    NOT NULL,
+  alert_id        INTEGER REFERENCES alerts(id) ON DELETE SET NULL,
+  run_id          INTEGER,
+  station_id      INTEGER,
+  tick            INTEGER,
+  dedup_key       TEXT    NOT NULL UNIQUE,
+  payload_json    TEXT    NOT NULL,
+  status          TEXT    NOT NULL CHECK (status IN ('PENDING', 'SENT', 'FAILED', 'SUPPRESSED')),
+  attempts        INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at TEXT    NOT NULL,
+  last_error      TEXT,
+  created_at      TEXT    NOT NULL,
+  sent_at         TEXT
+);
+CREATE INDEX telegram_outbox_due ON telegram_outbox(status, next_attempt_at);
+
+CREATE TABLE telegram_state (
+  id            INTEGER PRIMARY KEY CHECK (id = 1),
+  update_offset INTEGER NOT NULL DEFAULT 0
+);
+INSERT INTO telegram_state (id, update_offset) VALUES (1, 0);
+`,
+  },
 ];

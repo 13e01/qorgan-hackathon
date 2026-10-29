@@ -121,7 +121,8 @@ describe('Демо за 2 минуты — полный путь через на
     expect(demo.state.phase).toBe('off');
     expect(s.scheduler.pending).toBe(0);
     sock.ws.terminate();
-  });
+    // Полный прогон RAPID_FLOOD через настоящий backend (≈ 2,5 с); при параллельных тяжёлых тестах (Sentinel ML) 5 с мало.
+  }, 20_000);
 
   it('выход во время показа останавливает прогон (данные сохраняются); повтор создаёт новый прогон', async () => {
     const s = await simApp();

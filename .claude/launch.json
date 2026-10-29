@@ -6,6 +6,18 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 5173
+    },
+    {
+      "name": "telegram-mock",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/telegram-mock.mjs"],
+      "port": 8081
+    },
+    {
+      "name": "sentinel-check",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set DB_PATH=data/sentinel-check.db&& set MQTT_ENABLED=false&& set TELEGRAM_BOT_TOKEN=mock-token&& set TELEGRAM_API_BASE=http://127.0.0.1:8081&& set PUBLIC_URL=http://localhost:5173&& npm run dev"],
+      "port": 5173
     }
   ]
 }

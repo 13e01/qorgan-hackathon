@@ -23,7 +23,12 @@
     "demo:wave": "npm run demo:wave -w @qorgan/server --",
     "build": "npm run build -w @qorgan/web",
     "dev:server": "npm run dev -w @qorgan/server",
-    "mqtt:broker": "npm run mqtt:broker -w @qorgan/server"
+    "mqtt:broker": "npm run mqtt:broker -w @qorgan/server",
+    "ml:setup": "py -m venv ml/.venv && ml\\.venv\\Scripts\\python -m pip install -r ml/requirements.txt",
+    "ml:dataset": "tsx ml/dataset/export.ts --episodes 500 && tsx ml/dataset/export.ts --official",
+    "ml:train": "cd ml && .venv\\Scripts\\python -m sentinel.train",
+    "ml:test": "ml\\.venv\\Scripts\\python -m unittest discover -s ml/tests -t ml",
+    "telegram:mock": "node scripts/telegram-mock.mjs"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",

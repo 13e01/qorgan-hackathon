@@ -186,6 +186,7 @@ export function listInterventions(db: Db, runId: number): InterventionRow[] {
 export function deleteRunData(db: Db, runId: number): void {
   db.prepare('DELETE FROM alert_events WHERE alert_id IN (SELECT id FROM alerts WHERE run_id = ?)').run(runId);
   db.prepare('DELETE FROM alerts WHERE run_id = ?').run(runId);
+  db.prepare('DELETE FROM ml_assessments WHERE run_id = ?').run(runId);
   db.prepare('DELETE FROM risk_assessments WHERE run_id = ?').run(runId);
   db.prepare('DELETE FROM measurements WHERE run_id = ?').run(runId);
   db.prepare('DELETE FROM sim_interventions WHERE run_id = ?').run(runId);

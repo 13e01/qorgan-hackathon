@@ -12,6 +12,7 @@ import { useStore } from '../state/store';
 import { useAlertList } from '../pages/Alerts';
 import { AlertCard } from './AlertItem';
 import { LevelChart } from './LevelChart';
+import { MlExplain } from './MlExplain';
 import { TrendIcon } from './StationList';
 import { Disclosure, Icon, RiskBadge, Val } from './ui';
 
@@ -198,6 +199,8 @@ export function StationCard({
           </ul>
         </div>
       )}
+
+      <MlExplain code={code} />
 
       <Disclosure title={t('card.more')} className="sc-more">
         <section className="section">
