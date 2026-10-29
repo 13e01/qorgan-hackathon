@@ -1,0 +1,160 @@
+{
+ "before": {
+  "input_i": "-16.49",
+  "input_tp": "-3.47",
+  "input_lra": "2.80",
+  "input_thresh": "-27.44",
+  "output_i": "-15.85",
+  "output_tp": "-2.38",
+  "output_lra": "2.30",
+  "output_thresh": "-26.75",
+  "normalization_type": "dynamic",
+  "target_offset": "-0.15"
+ },
+ "after": {
+  "input_i": "-16.47",
+  "input_tp": "-3.49",
+  "input_lra": "2.50",
+  "input_thresh": "-27.35",
+  "output_i": "-15.98",
+  "output_tp": "-3.00",
+  "output_lra": "2.50",
+  "output_thresh": "-26.86",
+  "normalization_type": "linear",
+  "target_offset": "-0.02"
+ },
+ "voLines": [
+  {
+   "id": "L01",
+   "start": 0.9,
+   "end": 5.58
+  },
+  {
+   "id": "L02",
+   "start": 6.2,
+   "end": 9.72
+  },
+  {
+   "id": "L03",
+   "start": 11.6,
+   "end": 14.33
+  },
+  {
+   "id": "L04",
+   "start": 15.5,
+   "end": 18.16
+  },
+  {
+   "id": "L05",
+   "start": 18.7,
+   "end": 25.88
+  },
+  {
+   "id": "L06",
+   "start": 26.2,
+   "end": 28.44
+  },
+  {
+   "id": "L07",
+   "start": 29,
+   "end": 32.47
+  },
+  {
+   "id": "L08",
+   "start": 33.1,
+   "end": 39.76
+  },
+  {
+   "id": "L09",
+   "start": 40.1,
+   "end": 43.49
+  },
+  {
+   "id": "L10",
+   "start": 44.5,
+   "end": 48.54
+  },
+  {
+   "id": "L11",
+   "start": 49,
+   "end": 52.1
+  },
+  {
+   "id": "L12",
+   "start": 53.9,
+   "end": 59.17
+  }
+ ],
+ "sfx": [
+  {
+   "name": "клик open-system",
+   "t": 10,
+   "db": -12
+  },
+  {
+   "name": "клик station-petropavlovsk",
+   "t": 15,
+   "db": -12
+  },
+  {
+   "name": "клик nav-alerts",
+   "t": 44.2,
+   "db": -12
+  },
+  {
+   "name": "клик alert-view",
+   "t": 48.3,
+   "db": -12
+  },
+  {
+   "name": "клик alert-resolve",
+   "t": 50.59,
+   "db": -12
+  },
+  {
+   "name": "клик alert-confirm",
+   "t": 52.6,
+   "db": -12
+  },
+  {
+   "name": "whoosh → система",
+   "t": 9.65,
+   "db": -16
+  },
+  {
+   "name": "низкий переход",
+   "t": 10.25,
+   "db": -14
+  },
+  {
+   "name": "окно датчика",
+   "t": 25.7,
+   "db": -20
+  },
+  {
+   "name": "сигнал: средний",
+   "t": 33,
+   "db": -15
+  },
+  {
+   "name": "сигнал: высокий",
+   "t": 37.6,
+   "db": -13
+  },
+  {
+   "name": "акцент: высокий",
+   "t": 37.55,
+   "db": -18
+  },
+  {
+   "name": "whoosh → главная",
+   "t": 53.2,
+   "db": -17
+  },
+  {
+   "name": "логотип",
+   "t": 56.9,
+   "db": -10
+  }
+ ]
+}

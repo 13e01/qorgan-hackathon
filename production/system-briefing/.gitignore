@@ -1,0 +1,6 @@
+# Большие и пересоздаваемые файлы видеопроизводства — в git не попадают (пересобираются скриптами, см. README.md).
+capture/*/frames/
+renders/
+audio/*.wav
+audio/vo/*.wav
+edit/timeline.js
