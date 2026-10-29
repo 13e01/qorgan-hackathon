@@ -2954,8 +2954,9 @@ button.rb-row:hover {
   }
 }
 
+/* Прототипы главной (.cine) управляют движением сами: data-still — по этой же настройке или переключателю. */
 @media (prefers-reduced-motion: reduce) {
-  * {
+  :not(.cine *) {
     transition: none !important;
     animation: none !important;
   }
