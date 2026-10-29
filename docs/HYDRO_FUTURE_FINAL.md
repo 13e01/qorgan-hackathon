@@ -162,6 +162,10 @@
 
 ## 11. Запуск
 
+> **Исправлено 29.10 («чёрный экран»).** Если на порту 3000 уже работает другая копия QORGAN (из другой папки или
+> старый `npm run dev`), `start-demo.bat` теперь не открывает её молча, а пишет «port 3000 is used by a QORGAN copy
+> that serves a DIFFERENT website build» и что сделать. Сам сервер после `npm run build` сразу отдаёт новую сборку.
+
 ```bat
 npm install
 npm run build

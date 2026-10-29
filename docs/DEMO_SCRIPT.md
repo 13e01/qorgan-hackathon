@@ -91,6 +91,7 @@
 | Окно `start-*.bat` сразу закрывается / ошибки с обрывками русских слов | Это была старая версия BAT-файлов (UTF-8 + LF). Текущие — только латиница и CRLF. Запускать из папки проекта двойным щелчком. |
 | «The sensor is ALREADY RUNNING in another window» | Датчик уже открыт в другом окне — пользоваться им. Второй экземпляр специально не запускается. |
 | Уровень датчика застрял высоко | В окне датчика **N** + Enter (вернётся к 3,20 м примерно за минуту) или закрыть окно датчика (Q + Enter) и запустить `start-sensor.bat` заново. |
+| Чёрный экран, в консоли «Expected a JavaScript-or-Wasm module script… MIME type of "text/html"» | Порт занят другой копией QORGAN (из другой папки или старым `npm run dev`). Исправлено 29.10: сервер читает `index.html` при каждом запросе, а `start-demo.bat` / `start-qorgan.bat` сообщают «port … is used by a QORGAN copy that serves a DIFFERENT website build». Закрыть ту копию (её `stop-demo.bat` или окно `npm run dev` / `npm start`) и запустить `start-demo.bat` снова. |
 | Всё сломалось | `stop-demo.bat`, затем `start-demo.bat`. Если не помогло — показать скриншоты/видео и `npm test` (254 автотеста + 19 на Python) — это доказательство, что логика работает. |
 
 ## Запасной короткий сценарий (2 минуты)

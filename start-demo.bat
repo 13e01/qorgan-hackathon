@@ -47,12 +47,14 @@ call "%~dp0start-sensor.bat" PREPARE
 if errorlevel 1 goto fail
 
 echo [5/7] QORGAN server on port %QPORT%...
+set "REUSED=0"
 call :port_busy %QPORT%
 if "%PORT_BUSY%"=="1" goto server_running
 start "QORGAN-server" cmd /c call "%~dp0start-qorgan.bat"
 echo       started in a new window: QORGAN-server. The build takes up to a minute...
 goto server_wait
 :server_running
+set "REUSED=1"
 echo       port %QPORT% is busy - checking that it is QORGAN, a second copy is not started
 :server_wait
 set /a WAITED=0
@@ -64,6 +66,10 @@ if %WAITED% GEQ 240 goto server_timeout
 ping -n 3 127.0.0.1 >nul
 goto server_loop
 :server_ready
+if not "%REUSED%"=="1" goto server_ok
+call :same_build %QPORT%
+if "%BUILD_OK%"=="0" goto server_stale
+:server_ok
 echo       OK - QORGAN answers on http://localhost:%QPORT%/
 
 echo [6/7] MQTT broker on port %MPORT%...
@@ -107,6 +113,16 @@ echo ==================================================================
 pause
 exit /b 0
 
+:server_stale
+echo.
+echo ERROR: port %QPORT% is used by a QORGAN copy that serves a DIFFERENT website build.
+echo It was started from another folder, or it is an old server that kept an older build.
+echo The browser would show a black screen.
+echo Stop that copy: run stop-demo.bat in its folder, or close the window where
+echo "npm run dev" or "npm start" is running. Then run this file again.
+pause
+exit /b 1
+
 :server_timeout
 echo.
 echo ERROR: QORGAN did not answer within 4 minutes.
@@ -145,6 +161,17 @@ rem ---- helpers ---------------------------------------------------------------
 set "ENV_VALUE=%~2"
 if not exist ".env" exit /b 0
 for /f "usebackq eol=# tokens=1,* delims==" %%A in (".env") do if /i "%%A"=="%~1" set "ENV_VALUE=%%B"
+exit /b 0
+
+rem :same_build PORT  - BUILD_OK=0 if the server on PORT serves a different index.html than apps\web\dist of THIS folder
+rem (a copy from another folder, or an old server that remembered an older build). The browser would show a black screen.
+:same_build
+set "BUILD_OK=1"
+if not exist "apps\web\dist\index.html" exit /b 0
+curl.exe -fs "http://127.0.0.1:%~1/" -o "%TEMP%\qorgan-served-index.html" >nul 2>nul
+if errorlevel 1 exit /b 0
+fc /b "%TEMP%\qorgan-served-index.html" "apps\web\dist\index.html" >nul 2>nul
+if errorlevel 1 set "BUILD_OK=0"
 exit /b 0
 
 :port_busy
