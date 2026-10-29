@@ -298,8 +298,9 @@ window.renderFrame = async function renderFrame(k) {
   $('edu').style.left = (56 + (chW ? chW + 14 : 0)).toFixed(1) + 'px';
   setLayer($('edu'), window01(t, TL.edu[0], TL.edu[1], 0.6, 0.6));
   setLayer($('end'), window01(t, TL.end[0], TL.end[1] + 5, 0.9, 0.5));
-  const ec = clamp((t - TL.end[0]) / 1.6, 0, 1);
-  $('end').style.transform = `scale(${(0.97 + 0.03 * easeInOut(ec)).toFixed(4)})`;
+  // Медленный непрерывный наезд на всей финальной карточке (без застывшего кадра).
+  const ec = clamp((t - TL.end[0]) / (TL.duration - TL.end[0]), 0, 1);
+  $('end').style.transform = `scale(${(0.965 + 0.06 * (1 - Math.pow(1 - ec, 2))).toFixed(4)})`;
   // Затемнение в начале и в конце
   const f = Math.max(1 - clamp(t / TL.fadeIn, 0, 1), clamp((t - (TL.duration - TL.fadeOut)) / TL.fadeOut, 0, 1));
   $('fade').style.opacity = f.toFixed(3);

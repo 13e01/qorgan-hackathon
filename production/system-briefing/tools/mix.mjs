@@ -230,11 +230,21 @@ function readWavMono(file) {
 }
 const vo = new Float32Array(N);
 const voLines = [];
-for (const line of narration.lines) {
-  const buf = readWavMono(join(BASE, 'audio/vo', `${line.id}.wav`));
-  const s = Math.round(line.start * SR);
+if (narration.voiceFile) {
+  // Цельная запись диктора (от пользователя): ставится как есть, без нарезки и изменения темпа, со сдвигом voiceOffset.
+  const wav = join(BASE, 'audio/vo/voice-full.wav');
+  spawnSync('ffmpeg', ['-y', '-v', 'error', '-i', join(BASE, narration.voiceFile), '-ar', String(SR), '-ac', '1', '-c:a', 'pcm_s16le', wav]);
+  const buf = readWavMono(wav);
+  const s = Math.round(narration.voiceOffset * SR);
   for (let i = 0; i < buf.length && s + i < N; i++) vo[s + i] += buf[i];
-  voLines.push({ id: line.id, start: line.start, end: +(line.start + buf.length / SR).toFixed(2) });
+  for (const line of narration.lines) voLines.push({ id: line.id, start: line.start, end: line.end });
+} else {
+  for (const line of narration.lines) {
+    const buf = readWavMono(join(BASE, 'audio/vo', `${line.id}.wav`));
+    const s = Math.round(line.start * SR);
+    for (let i = 0; i < buf.length && s + i < N; i++) vo[s + i] += buf[i];
+    voLines.push({ id: line.id, start: line.start, end: +(line.start + buf.length / SR).toFixed(2) });
+  }
 }
 // Огибающая голоса (атака 60 мс, спад 450 мс) → музыка тише на 6 дБ, пока звучит диктор.
 const duck = new Float32Array(N);
@@ -254,7 +264,8 @@ function writeWav(file, chans) {
   for (let i = 0; i < n; i++) for (let k = 0; k < c; k++) b.writeFloatLE(chans[k][i], 44 + (i * c + k) * 4);
   writeFileSync(file, b);
 }
-const MUSIC_DB = 8, SFX_DB = 5, VO_DB = 0;
+// Запись пользователя тише синтеза (−20,4 против −16,4 LUFS) — её усиление задаётся в narration.json (voiceGainDb).
+const MUSIC_DB = 8, SFX_DB = 5, VO_DB = narration.voiceGainDb ?? 0;
 const mix = stereo();
 for (let n = 0; n < N; n++) {
   const m = dbToGain(MUSIC_DB) * duck[n];

@@ -1,159 +1,159 @@
 {
  "before": {
-  "input_i": "-16.47",
-  "input_tp": "-3.47",
-  "input_lra": "2.60",
-  "input_thresh": "-27.38",
-  "output_i": "-15.84",
-  "output_tp": "-2.38",
-  "output_lra": "2.10",
-  "output_thresh": "-26.71",
+  "input_i": "-13.35",
+  "input_tp": "1.71",
+  "input_lra": "2.70",
+  "input_thresh": "-24.37",
+  "output_i": "-16.17",
+  "output_tp": "-1.50",
+  "output_lra": "2.50",
+  "output_thresh": "-26.98",
   "normalization_type": "dynamic",
-  "target_offset": "-0.16"
+  "target_offset": "0.17"
  },
  "after": {
-  "input_i": "-16.42",
-  "input_tp": "-3.49",
-  "input_lra": "2.10",
-  "input_thresh": "-27.29",
-  "output_i": "-15.95",
-  "output_tp": "-3.02",
-  "output_lra": "2.10",
-  "output_thresh": "-26.82",
-  "normalization_type": "linear",
-  "target_offset": "-0.05"
+  "input_i": "-13.35",
+  "input_tp": "1.71",
+  "input_lra": "2.70",
+  "input_thresh": "-24.37",
+  "output_i": "-16.00",
+  "output_tp": "-1.50",
+  "output_lra": "2.60",
+  "output_thresh": "-26.81",
+  "normalization_type": "dynamic",
+  "target_offset": "0.00"
  },
  "voLines": [
   {
    "id": "L01",
-   "start": 0.9,
-   "end": 5.58
+   "start": 0.8,
+   "end": 6.36
   },
   {
    "id": "L02",
-   "start": 6.2,
-   "end": 9.72
+   "start": 6.69,
+   "end": 10.13
   },
   {
    "id": "L03",
-   "start": 11.6,
-   "end": 14.33
+   "start": 10.51,
+   "end": 13.44
   },
   {
    "id": "L04",
-   "start": 15.5,
-   "end": 18.16
+   "start": 13.89,
+   "end": 17.38
   },
   {
    "id": "L05",
-   "start": 18.7,
-   "end": 25.97
+   "start": 17.82,
+   "end": 24.58
   },
   {
    "id": "L06",
-   "start": 26.45,
-   "end": 28.69
+   "start": 25.02,
+   "end": 27.19
   },
   {
    "id": "L07",
-   "start": 29,
-   "end": 32.47
+   "start": 27.56,
+   "end": 31.36
   },
   {
    "id": "L08",
-   "start": 33.1,
-   "end": 39.76
+   "start": 31.81,
+   "end": 38.11
   },
   {
    "id": "L09",
-   "start": 40.1,
-   "end": 43.49
+   "start": 38.54,
+   "end": 41.93
   },
   {
    "id": "L10",
-   "start": 44.5,
-   "end": 48.54
+   "start": 42.3,
+   "end": 46.53
   },
   {
    "id": "L11",
-   "start": 49,
-   "end": 52.1
+   "start": 46.84,
+   "end": 50.4
   },
   {
    "id": "L12",
-   "start": 53.5,
-   "end": 59.2
+   "start": 50.84,
+   "end": 55.63
   }
  ],
  "sfx": [
   {
    "name": "клик open-system",
-   "t": 10,
+   "t": 10.25,
    "db": -12
   },
   {
    "name": "клик station-petropavlovsk",
-   "t": 15,
+   "t": 14,
    "db": -12
   },
   {
    "name": "клик nav-alerts",
-   "t": 44.2,
+   "t": 42.45,
    "db": -12
   },
   {
    "name": "клик alert-view",
-   "t": 48.3,
+   "t": 46.4,
    "db": -12
   },
   {
    "name": "клик alert-resolve",
-   "t": 50.59,
+   "t": 48.65,
    "db": -12
   },
   {
    "name": "клик alert-confirm",
-   "t": 52.5,
+   "t": 50.45,
    "db": -12
   },
   {
    "name": "whoosh → система",
-   "t": 9.65,
+   "t": 9.9,
    "db": -16
   },
   {
    "name": "низкий переход",
-   "t": 10.25,
+   "t": 10.5,
    "db": -14
   },
   {
    "name": "окно датчика",
-   "t": 26,
+   "t": 24.5,
    "db": -20
   },
   {
    "name": "сигнал: средний",
-   "t": 33.1,
+   "t": 31.85,
    "db": -15
   },
   {
    "name": "сигнал: высокий",
-   "t": 37.6,
+   "t": 36.5,
    "db": -13
   },
   {
    "name": "акцент: высокий",
-   "t": 37.55,
+   "t": 36.45,
    "db": -18
   },
   {
    "name": "whoosh → главная",
-   "t": 53.4,
+   "t": 51.4,
    "db": -17
   },
   {
    "name": "логотип",
-   "t": 57,
+   "t": 55.3,
    "db": -10
   }
  ]

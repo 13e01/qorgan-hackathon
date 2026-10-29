@@ -41,14 +41,10 @@ node production/system-briefing/tools/timeline.mjs take5
 ```
 Строит монтажный план по меткам съёмки (время в ролике — объект `O` в `tools/timeline.mjs`).
 
-```bash
-py -m pip install --user edge-tts
-```
-```bash
-node production/system-briefing/tools/voice.mjs
-```
-Синтез реплик (онлайн, Microsoft Neural, голос ru-RU-DmitryNeural). Сервис иногда отвечает пустым потоком —
-скрипт повторяет запрос; полный синтез занимает 5–15 минут. `--no-synth` — только пересобрать WAV из готовых MP3.
+**Озвучка (v3):** запись пользователя `audio/voice-elevenlabs.mp3` (ElevenLabs) — ставится целиком, параметры в
+`edit/narration.json` (`voiceFile`, `voiceOffset`, `voiceGainDb`, границы реплик `inVoice`). Синтез не нужен.
+Чтобы вернуться к синтезу Microsoft Neural (v1/v2): удалить `voiceFile` из `narration.json`, затем
+`py -m pip install --user edge-tts` и `node production/system-briefing/tools/voice.mjs` (онлайн, 5–15 минут).
 
 ```bash
 node production/system-briefing/tools/mix.mjs
