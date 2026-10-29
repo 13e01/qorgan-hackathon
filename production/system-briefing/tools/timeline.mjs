@@ -58,7 +58,8 @@ const O = {
 // Между метками скорость 1, кроме двух мест, где это нужно для минуты и подписано «ускорено»:
 // подъём воды (между «Средний» и «Высокий») и набор комментария.
 const mainMap = [
-  [O.openClick + 0.4, S.openClick + 0.4],
+  // Интерфейс сам растворяет главную в панель ≈ 0,6 с; отрезок начинается, когда панель уже загружена.
+  [O.openClick + 0.6, S.openClick + 0.75],
   [O.stationClick, S.stationClick],
   // Пока диктор говорит о датчике, экран почти неподвижен (обновляется раз в 2 с) — время записи идёт медленнее.
   [O.stationClick + 5.0, S.stationClick + 5.0],
@@ -79,7 +80,7 @@ for (let i = 1; i < mainMap.length; i++) {
 // Камера главного отрезка (координаты страницы 1920×1080).
 const pin = { x: 876, y: 776 }; // метка Петропавловска после перелёта карты (видно на кадрах дубля)
 const cam = [
-  { t: O.openClick + 0.4, x: 960, y: 540, z: 1.0 },
+  { t: O.openClick + 0.6, x: 960, y: 540, z: 1.0 },
   { t: O.openClick + 1.6, x: 960, y: 540, z: 1.0 },
   { t: O.stationClick - 0.9, x: 900, y: 690, z: 1.35 },              // наезд на карту к станции
   { t: O.stationClick + 3.6, x: 900, y: 720, z: 1.5 },
@@ -87,7 +88,7 @@ const cam = [
   { t: O.danger - 0.2, x: 1330, y: 640, z: 1.32 },
   { t: O.high - 0.3, x: 1300, y: 650, z: 1.36, ease: 'linear' },     // медленный наезд во время подъёма
   { t: O.high + 1.4, x: 1420, y: 760, z: 1.25 },                     // всплывающие предупреждения справа внизу
-  { t: O.navClick - 1.5, x: 1420, y: 770, z: 1.25 },
+  { t: O.navClick - 1.5, x: 1440, y: 770, z: 1.3, ease: 'linear' },  // медленный дрейф, чтобы план не застывал
   { t: O.navClick - 0.2, x: 960, y: 540, z: 1.0 },                   // общий план: курсор идёт к меню
   { t: O.navClick + 1.4, x: 960, y: 540, z: 1.0 },
   { t: O.viewClick - 0.8, x: 860, y: 650, z: 1.42 },                 // карточка Петропавловска
@@ -97,11 +98,12 @@ const cam = [
 ];
 
 const welcomeCam = [
-  { t: 0, x: 1320, y: 560, z: 1.6 },                 // только река, без заголовка
-  { t: 6.2, x: 1060, y: 560, z: 1.06, ease: 'linear' },
+  { t: 0, x: 1330, y: 560, z: 1.64 },                // только река, без заголовка
+  { t: 2.4, x: 1320, y: 560, z: 1.6, ease: 'linear' }, // едва заметный дрейф
+  { t: 6.4, x: 1060, y: 560, z: 1.06 },                // отъезд: открывается заголовок главной
   { t: 7.6, x: 960, y: 540, z: 1.0 },
   { t: O.openClick - 0.6, x: 700, y: 610, z: 1.12 },
-  { t: O.openClick + 0.6, x: 700, y: 610, z: 1.14 },
+  { t: O.openClick + 0.8, x: 700, y: 610, z: 1.14 },
 ];
 const finaleCam = [
   { t: O.finaleIn - 0.6, x: 1180, y: 640, z: 1.12 },
@@ -110,9 +112,9 @@ const finaleCam = [
 
 const segments = [
   // 1. Hydro Future: запись с самого начала, клик «Открыть систему» точно в O.openClick.
-  { take: TAKE, out: [0, O.openClick + 0.4], map: [[0, 0], [O.openClick, S.openClick]], cam: welcomeCam, cursor: true, cursorFade: [O.openClick - 2.2, O.openClick + 0.9] },
+  { take: TAKE, out: [0, O.openClick + 0.6], map: [[0, 0], [O.openClick, S.openClick]], cam: welcomeCam, cursor: true, cursorFade: [O.openClick - 2.2, O.openClick + 0.9] },
   // 2. Рабочая система: панель → датчик → подъём → журнал.
-  { take: TAKE, out: [O.openClick + 0.4, O.finaleIn], xin: 0.45, map: mainMap, cam, cursor: true, cursorFade: [O.stationClick - 1.6, O.finaleIn + 1] },
+  { take: TAKE, out: [O.openClick + 0.6, O.finaleIn], xin: 0.35, map: mainMap, cam, cursor: true, cursorFade: [O.stationClick - 1.6, O.finaleIn + 1] },
   // 3. Возврат на главную по щелчку логотипа: живая полоса станций внизу, Петропавловск — «Высокий».
   { take: TAKE, out: [O.finaleIn, DURATION], xin: 0.6, map: [[O.finaleIn, S.finale - 0.2]], cam: finaleCam, cursor: false },
 ];

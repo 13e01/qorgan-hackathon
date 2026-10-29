@@ -200,7 +200,8 @@ function drawClick(p, age, scale) {
 // ── сцена ───────────────────────────────────────────────────────────────────────────────────────────
 async function drawSegment(seg, t, alpha) {
   const take = TL.takes[seg.take];
-  const s = srcTime(seg, t);
+  // До начала отрезка (во время наплыва) держим его первый кадр, а не отматываем запись назад.
+  const s = srcTime(seg, Math.max(t, seg.out[0]));
   const img = await getImage(seg.take, frameFile(seg.take, s));
   const cam = fitCam(camera(t, seg.cam));
   ctx.save();

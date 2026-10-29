@@ -4,3 +4,4 @@ renders/
 audio/*.wav
 audio/vo/*.wav
 edit/timeline.js
+capture/*/frames.ffconcat

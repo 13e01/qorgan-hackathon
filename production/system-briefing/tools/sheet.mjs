@@ -13,7 +13,7 @@ if (src === '--files') files = rest;
 else {
   files = rest[0].split(',').map(Number).map((t, i) => {
     const f = join(tmp, `${String(i).padStart(3, '0')}.jpg`);
-    execFileSync('ffmpeg', ['-y', '-v', 'error', '-ss', String(t), '-i', src, '-frames:v', '1', '-vf', `drawtext=text='${t.toFixed(2)}s':x=20:y=20:fontsize=48:fontcolor=yellow:box=1:boxcolor=black@0.6`, f]);
+    execFileSync('ffmpeg', ['-y', '-v', 'error', '-ss', String(t), '-i', src, '-frames:v', '1', f]);
     return f;
   });
 }
