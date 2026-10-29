@@ -1,23 +1,77 @@
-// Общие детали прототипов главной страницы: действия кнопок, живые данные, движение и знак QORGAN.
+// Общие детали главной страницы Hydro Future: действия кнопок, живые данные, движение и знак QORGAN.
 // Кнопки ведут в настоящую систему: «Открыть систему» — на главную панель, «Смотреть демонстрацию» — тот же
-// «Демо за 2 минуты» (state/demo.tsx), что и в панели; без входа оператора он открывает окно входа.
+// «Демо за 2 минуты» (state/demo.tsx), что и в панели; без входа оператора открывается окно входа, а после входа
+// демонстрация начинается сама (без второго нажатия).
 
-import { createContext, Fragment, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useReducedMotion } from '../components/motion';
 import { LANGS, useI18n, type MessageKey } from '../i18n';
-import { riverFlow, type FlowNode } from '../lib/flow';
+import { DASHBOARD_HASH } from '../lib/cinema';
+import { riverFlow } from '../lib/flow';
 import { metersFromCm } from '../lib/format';
 import { useDemo } from '../state/demo';
 import { useStore } from '../state/store';
+import { preload } from '../Root';
 
-/** Действия главных кнопок — общие для всех концепций. */
+/**
+ * Что сделать с отложенной демонстрацией (нажали «Смотреть демонстрацию» без входа): после входа — начать,
+ * пока открыто окно входа — ждать, окно закрыто без входа — забыть.
+ */
+export function demoAfterLogin(pending: boolean, canControl: boolean, loginOpen: boolean): 'start' | 'wait' | 'drop' | 'idle' {
+  if (!pending) return 'idle';
+  if (canControl) return 'start';
+  return loginOpen ? 'wait' : 'drop';
+}
+
+const SCROLL_KEY = 'qorgan.welcome.scroll';
+
+/** Место прокрутки главной — запоминается при уходе в систему, восстанавливается при возврате кнопкой «Назад». */
+export function rememberScroll(): void {
+  try {
+    sessionStorage.setItem(SCROLL_KEY, String(Math.round(window.scrollY)));
+  } catch {
+    /* хранилище недоступно — вернёмся наверх */
+  }
+}
+
+export function takeScroll(): number {
+  try {
+    const v = Number(sessionStorage.getItem(SCROLL_KEY));
+    sessionStorage.removeItem(SCROLL_KEY);
+    return Number.isFinite(v) ? v : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** Действия главных кнопок. Файл рабочей системы подгружается заранее (prime), чтобы переход был без ожидания. */
 export function useCta() {
   const { begin } = useDemo();
+  const { canControl, loginOpen } = useStore();
+  const pending = useRef(false);
+  const asked = useRef(false);
+  useEffect(() => {
+    // Окно входа ещё не успело открыться (сессия проверяется) — не сбрасываем просьбу раньше времени.
+    if (loginOpen) asked.current = true;
+    const next = demoAfterLogin(pending.current, canControl, loginOpen || !asked.current);
+    if (next === 'start') begin();
+    if (next === 'start' || next === 'drop') pending.current = asked.current = false;
+  }, [canControl, loginOpen, begin]);
+  const prime = useCallback(() => void preload('app').catch(() => {}), []);
   return {
+    prime,
     openSystem: () => {
-      location.hash = '#/dashboard';
+      prime();
+      rememberScroll();
+      location.hash = DASHBOARD_HASH;
     },
-    watchDemo: begin,
+    watchDemo: () => {
+      prime();
+      rememberScroll();
+      pending.current = !canControl;
+      asked.current = false;
+      begin();
+    },
   };
 }
 
@@ -31,15 +85,8 @@ export function useRiverLive() {
     flow,
     online: connection === 'open',
     hasData: withData.length > 0,
-    worst: worstNode(flow.nodes),
+    alerts: live.snapshot?.alerts ?? null,
   };
-}
-
-const RANK = { NO_DATA: -1, LOW: 0, MEDIUM: 1, HIGH: 2 } as const;
-function worstNode(nodes: FlowNode[]): FlowNode | null {
-  let best: FlowNode | null = null;
-  for (const n of nodes) if (n.levelCm !== null && (!best || RANK[n.risk] > RANK[best.risk])) best = n;
-  return best;
 }
 
 /** Уровень в метрах с единицей или «Нет данных» (ноль не подставляется). */
@@ -53,18 +100,12 @@ export function useLevelText() {
 
 // ── Движение ────────────────────────────────────────────────────────────────────────────────────────────────
 
-type MotionChoice = 'auto' | 'still' | 'motion';
-const StillCtx = createContext<{ still: boolean; setChoice: (v: MotionChoice) => void }>({ still: false, setChoice: () => {} });
+const StillCtx = createContext<{ still: boolean }>({ still: false });
 
-/**
- * «Без анимации»: по умолчанию — системная настройка prefers-reduced-motion. Переключатель на панели прототипа
- * нужен для сравнения концепций: можно выключить движение или посмотреть его, даже если в системе оно уменьшено.
- */
+/** «Без движения» — только системная настройка prefers-reduced-motion (переключателя в интерфейсе нет). */
 export function StillProvider({ children }: { children: ReactNode }) {
-  const reduced = useReducedMotion();
-  const [choice, setChoice] = useState<MotionChoice>('auto');
-  const still = choice === 'still' || (choice === 'auto' && reduced);
-  const value = useMemo(() => ({ still, setChoice }), [still]);
+  const still = useReducedMotion();
+  const value = useMemo(() => ({ still }), [still]);
   return <StillCtx.Provider value={value}>{children}</StillCtx.Provider>;
 }
 export const useStill = () => useContext(StillCtx);
@@ -113,25 +154,6 @@ export function Reveal({ as: Tag = 'div', className = '', delay = 0, children, .
     <El ref={ref as React.RefObject<HTMLDivElement>} className={`reveal${inView ? ' is-in' : ''} ${className}`} style={{ '--d': `${delay}ms` } as CSSProperties} {...rest}>
       {children}
     </El>
-  );
-}
-
-/**
- * Заголовок со строками, выезжающими из-под маски. Для диктора — одна цельная фраза (aria-label),
- * разбивка на строки только визуальная.
- */
-export function MaskedLines({ lines, label: given, className = '', as: Tag = 'h1', start = 0, step = 110 }: { lines: ReactNode[]; label?: string; className?: string; as?: 'h1' | 'h2'; start?: number; step?: number }) {
-  const label = given ?? lines.map((l) => (typeof l === 'string' ? l : '')).join(' ');
-  return (
-    <Tag className={`masked ${className}`} aria-label={label || undefined}>
-      {lines.map((l, i) => (
-        <span className="mask" key={i} aria-hidden={label ? true : undefined}>
-          <span className="mask-in" style={{ '--d': `${start + i * step}ms` } as CSSProperties}>
-            {l}
-          </span>
-        </span>
-      ))}
-    </Tag>
   );
 }
 
@@ -210,26 +232,44 @@ export function CineLang() {
 }
 
 /** Меню на весь экран для узких экранов: Esc и ссылка закрывают, фокус — на кнопку закрытия. */
-export function FullMenu({ open, onClose, links, children, className = '' }: { open: boolean; onClose: () => void; links: Array<{ id: string; key: MessageKey }>; children?: ReactNode; className?: string }) {
+export function FullMenu({ open, onClose, links, first = 1, children, className = '' }: { open: boolean; onClose: () => void; links: Array<{ id: string; key: MessageKey }>; first?: number; children?: ReactNode; className?: string }) {
   const { t } = useI18n();
   const closeRef = useRef<HTMLButtonElement>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
+    // Фокус — в меню, Tab не уходит за его пределы, страница под меню не прокручивается; после закрытия фокус
+    // возвращается на кнопку, которая меню открыла.
+    const opener = document.activeElement as HTMLElement | null;
+    const overflow = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
     closeRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') return onClose();
+      if (e.key !== 'Tab' || !boxRef.current) return;
+      const items = [...boxRef.current.querySelectorAll<HTMLElement>('button, a[href]')];
+      const firstEl = items[0];
+      const lastEl = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === firstEl) (e.preventDefault(), lastEl?.focus());
+      else if (!e.shiftKey && document.activeElement === lastEl) (e.preventDefault(), firstEl?.focus());
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.documentElement.style.overflow = overflow;
+      opener?.focus?.();
+    };
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className={`full-menu ${className}`} role="dialog" aria-modal="true" aria-label={t('cine.nav.menu')}>
+    <div ref={boxRef} className={`full-menu ${className}`} role="dialog" aria-modal="true" aria-label={t('cine.nav.menu')}>
       <button ref={closeRef} type="button" className="full-menu-close" onClick={onClose}>
         {t('cine.nav.close')}
       </button>
       <nav className="full-menu-links" aria-label={t('cine.nav.label')}>
         {links.map((l, i) => (
           <button type="button" key={l.id} onClick={() => (onClose(), requestAnimationFrame(() => scrollToId(l.id)))} style={{ '--d': `${80 + i * 70}ms` } as CSSProperties}>
-            <span className="full-menu-n">0{i + 1}</span>
+            <span className="full-menu-n">0{i + first}</span>
             {t(l.key)}
           </button>
         ))}

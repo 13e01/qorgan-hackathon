@@ -1,10 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@fontsource-variable/inter/opsz.css';
-import 'maplibre-gl/dist/maplibre-gl.css';
 import './styles.css';
 import './eclipse.css';
-import { Root } from './App';
+import { Root } from './Root';
 import { I18nProvider } from './i18n';
 import { DemoProvider } from './state/demo';
 import { StoreProvider } from './state/store';

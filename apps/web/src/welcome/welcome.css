@@ -1,0 +1,1740 @@
+/* Главная страница Hydro Future. Своя постоянная тёмная палитра — локальные токены .hf (как тёмная сцена демо в
+   eclipse.css); темы рабочей системы (data-theme) сюда не действуют и отсюда не меняются: все правила — внутри
+   .cine / .hf. Движение: появление слов из размытия, раскрытие разделов, сигнал между шагами, бегущий свет по
+   шкале, поток частиц на Canvas. При prefers-reduced-motion (data-still) — сразу законченная статичная композиция. */
+
+.cine {
+  --c-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --c-ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  min-height: 100%;
+}
+/* Пока открыта главная — фон и полосы прокрутки страницы тёмные (без белых краёв при прокрутке «с запасом»). */
+html:has(.hf) {
+  background: #050a12;
+  color-scheme: dark;
+}
+html:has(.hf) body {
+  background: #050a12;
+}
+
+/* ── Общие приёмы движения ─────────────────────────────────────────────────────────────────────────────── */
+.cine .reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  filter: blur(6px);
+  transition:
+    opacity 0.9s var(--c-ease) var(--d, 0ms),
+    transform 1.1s var(--c-ease) var(--d, 0ms),
+    filter 0.9s var(--c-ease) var(--d, 0ms);
+}
+.cine .reveal.is-in {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+.cine .words .word {
+  display: inline-block;
+  opacity: 0;
+  filter: blur(12px);
+  transform: translateY(0.25em);
+  animation: cine-word 1s var(--c-ease) var(--d, 0ms) forwards;
+}
+@keyframes cine-word {
+  to {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}
+@keyframes cine-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes cine-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+/* Без движения: общий styles.css при prefers-reduced-motion снимает анимации только вне .cine, поэтому здесь всё,
+   что прячется до анимации, явно получает конечный вид, а бесконечные эффекты скрываются. */
+.cine[data-still] *,
+.cine[data-still] *::before,
+.cine[data-still] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+.cine[data-still] .words .word,
+.cine[data-still] .reveal {
+  opacity: 1 !important;
+  transform: none !important;
+  filter: none !important;
+}
+.cine[data-still] .hf-packet,
+.cine[data-still] .hf-track-pulse,
+.cine[data-still] .hf-end-river .flow {
+  display: none;
+}
+
+/* Раздел вне экрана — его бесконечные анимации на паузе (HydroFuture.tsx ставит data-on видимым разделам). */
+.hf-sec:not([data-on]) *,
+.hf-sec:not([data-on]) *::before,
+.hf-sec:not([data-on]) *::after {
+  animation-play-state: paused !important;
+}
+
+/* ── Общие мелочи ──────────────────────────────────────────────────────────────────────────────────────── */
+.cine .qmark .qmark-river {
+  stroke: var(--mark-accent, currentColor);
+}
+:where(.cine) button {
+  font: inherit;
+  color: inherit;
+}
+.cine-lang {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--lang-border, currentColor);
+}
+.cine-lang button {
+  min-width: 36px;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0.72;
+}
+.cine-lang button[aria-pressed='true'] {
+  opacity: 1;
+  background: var(--lang-on, rgba(255, 255, 255, 0.14));
+}
+.cine-lang button:hover {
+  opacity: 1;
+}
+.cine :focus-visible {
+  outline: 2px solid var(--focus, #7cc4ff);
+  outline-offset: 3px;
+}
+
+.cine .full-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 16px calc(24px + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  animation: cine-fade 0.35s var(--c-ease);
+}
+.cine .full-menu-close {
+  align-self: flex-end;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  background: none;
+  cursor: pointer;
+}
+.cine .full-menu-links {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: auto 0;
+}
+.cine .full-menu-links button {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 1px solid var(--menu-rule, rgba(255, 255, 255, 0.12));
+  background: none;
+  text-align: left;
+  font-size: clamp(28px, 8.5vw, 52px);
+  font-weight: 300;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  cursor: pointer;
+  animation: cine-up 0.7s var(--c-ease) var(--d, 0ms) both;
+}
+.cine .full-menu-n {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+}
+.cine .full-menu-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ═════════════════════════════════════════════════════════════════════════════════════════════════════════
+   HYDRO FUTURE
+   ═════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.hf {
+  --h-bg: #050a12;
+  --h-bg-2: #08111d;
+  --h-ink: #eaf6ff;
+  --h-ink-2: rgba(214, 234, 248, 0.76);
+  --h-ink-3: rgba(170, 200, 225, 0.62);
+  --h-line: rgba(120, 200, 255, 0.14);
+  --h-line-2: rgba(120, 200, 255, 0.24);
+  --h-cyan: #5ee0ff;
+  --h-green: #65f0a8;
+  --h-amber: #ffb547;
+  --h-red: #ff6b6b;
+  --gutter: clamp(16px, 4vw, 56px);
+  --mark-accent: var(--h-cyan);
+  --lang-border: var(--h-line);
+  --lang-on: rgba(94, 224, 255, 0.16);
+  --menu-rule: var(--h-line);
+  --focus: var(--h-cyan);
+  --rc: var(--h-cyan);
+  background: var(--h-bg);
+  color: var(--h-ink);
+  font-family: var(--font);
+  overflow-x: clip;
+}
+.hf .cr-LOW {
+  --rc: var(--h-cyan);
+}
+.hf .cr-MEDIUM {
+  --rc: var(--h-amber);
+}
+.hf .cr-HIGH {
+  --rc: var(--h-red);
+}
+.hf .cr-NO_DATA {
+  --rc: var(--h-ink-3);
+}
+.hf-mono {
+  font-family: var(--mono);
+  font-size: 0.82em;
+  letter-spacing: 0.04em;
+}
+.hf-skip {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 70;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: var(--h-cyan);
+  color: #021018;
+  font-weight: 600;
+  transform: translateY(-160%);
+}
+.hf-skip:focus {
+  transform: none;
+}
+.hf main:focus {
+  outline: none;
+}
+
+/* ── Навигация: приборная полоса во всю ширину ──────────────────────────────────────────────────────── */
+.hf-nav {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 30;
+  display: flex;
+  align-items: stretch;
+  height: 60px;
+  border-bottom: 1px solid transparent;
+  background: linear-gradient(180deg, rgba(5, 10, 18, 0.7), rgba(5, 10, 18, 0));
+  transition:
+    background 0.4s,
+    border-color 0.4s;
+  animation: cine-fade 0.8s ease 0.1s both;
+}
+.hf-nav.is-scrolled {
+  border-bottom-color: var(--h-line);
+  background: rgba(5, 10, 18, 0.78);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+}
+.hf-nav > * {
+  display: flex;
+  align-items: center;
+}
+.hf-brand {
+  gap: 10px;
+  padding: 0 22px;
+  border: 0;
+  border-right: 1px solid var(--h-line);
+  background: none;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  font-size: 13px;
+}
+.hf-links button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 0 20px;
+  border: 0;
+  border-right: 1px solid var(--h-line);
+  background: none;
+  color: var(--h-ink-2);
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+.hf-links button::after {
+  content: '';
+  position: absolute;
+  inset: auto 20px -1px;
+  height: 2px;
+  background: var(--h-cyan);
+  box-shadow: 0 0 12px var(--h-cyan);
+  transform: scaleX(0);
+  transition: transform 0.45s var(--c-ease);
+}
+.hf-links button:hover,
+.hf-links button[aria-current='true'] {
+  background: rgba(94, 224, 255, 0.06);
+  color: var(--h-ink);
+}
+.hf-links button[aria-current='true']::after {
+  transform: none;
+}
+.hf-links .hf-mono {
+  color: var(--h-cyan);
+}
+.hf-tools {
+  gap: 10px;
+  margin-left: auto;
+  padding: 0 12px 0 16px;
+}
+.hf-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--h-ink-3);
+  font: 500 12px var(--mono);
+  white-space: nowrap;
+}
+.hf-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--h-ink-3);
+}
+.hf-status.on .hf-status-dot {
+  background: var(--h-green);
+  box-shadow: 0 0 0 3px rgba(101, 240, 168, 0.18);
+  animation: hf-blink 2.4s ease-in-out infinite;
+}
+@keyframes hf-blink {
+  50% {
+    box-shadow: 0 0 0 6px rgba(101, 240, 168, 0);
+  }
+}
+.hf-burger {
+  display: none;
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--h-line-2);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+}
+.hf-burger-lines {
+  width: 16px;
+  height: 10px;
+  border-block: 1.5px solid currentColor;
+  position: relative;
+}
+.hf-burger-lines::after {
+  content: '';
+  position: absolute;
+  inset: 50% 0 auto;
+  height: 1.5px;
+  margin-top: -0.75px;
+  background: currentColor;
+}
+.hf-menu {
+  background:
+    radial-gradient(80% 50% at 80% 0%, rgba(30, 90, 160, 0.35), transparent 70%),
+    linear-gradient(180deg, #071425, var(--h-bg));
+  color: var(--h-ink);
+}
+.hf-menu .full-menu-n {
+  color: var(--h-cyan);
+  opacity: 1;
+}
+
+/* ── Кнопки ─────────────────────────────────────────────────────────────────────────────────────────── */
+.hf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 22px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 15px !important;
+  font-weight: 600;
+  text-align: center;
+  transition:
+    background 0.25s,
+    box-shadow 0.35s var(--c-ease),
+    transform 0.35s var(--c-ease);
+}
+.hf-btn.sm {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 13.5px !important;
+  white-space: nowrap;
+}
+.hf-btn.primary {
+  position: relative;
+  overflow: hidden;
+  background: var(--h-cyan);
+  color: #021018 !important;
+  box-shadow:
+    0 0 0 1px rgba(94, 224, 255, 0.4),
+    0 12px 34px -10px rgba(94, 224, 255, 0.7);
+}
+/* Блик, пробегающий по главной кнопке при наведении. */
+.hf-btn.primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.55) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.7s var(--c-ease);
+}
+.hf-btn.primary:hover::before {
+  transform: translateX(120%);
+}
+.hf-btn.primary:hover {
+  background: #8beaff;
+  transform: translateY(-1px);
+  box-shadow:
+    0 0 0 1px rgba(94, 224, 255, 0.6),
+    0 18px 44px -10px rgba(94, 224, 255, 0.85);
+}
+.hf-btn.line {
+  border-color: rgba(94, 224, 255, 0.38);
+  background: rgba(94, 224, 255, 0.05);
+}
+.hf-btn.line:hover {
+  background: rgba(94, 224, 255, 0.12);
+  border-color: rgba(94, 224, 255, 0.6);
+}
+.hf-play {
+  border-left: 9px solid var(--h-cyan);
+  border-block: 6px solid transparent;
+}
+
+/* ── 01 · Первый экран ─────────────────────────────────────────────────────────────────────────────── */
+.hf-hero {
+  position: relative;
+  min-height: 100svh;
+  overflow: hidden;
+  isolation: isolate;
+  display: grid;
+  grid-template-rows: 1fr auto;
+}
+.hf-grid-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(60% 50% at 70% 30%, rgba(30, 90, 160, 0.32), transparent 70%),
+    linear-gradient(var(--h-line) 1px, transparent 1px) 0 0 / 72px 72px,
+    linear-gradient(90deg, var(--h-line) 1px, transparent 1px) 0 0 / 72px 72px,
+    var(--h-bg);
+  mask-image: radial-gradient(90% 80% at 50% 40%, #000 40%, transparent 100%);
+  opacity: 0.5;
+}
+.hf-depth {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  animation: cine-fade 1.6s ease 0.2s both;
+}
+.hf-depth canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* Текст слева читается поверх сцены: мягкое затемнение под колонкой текста. */
+.hf-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: min(62vw, 900px);
+  z-index: -1;
+  background: linear-gradient(90deg, rgba(5, 10, 18, 0.78) 30%, rgba(5, 10, 18, 0));
+  pointer-events: none;
+}
+.hf-copy {
+  align-self: center;
+  max-width: 760px;
+  padding: 104px var(--gutter) 28px;
+}
+.hf-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 24px;
+  color: var(--h-ink-2);
+  font-size: 13px;
+  animation: cine-fade 1s ease 0.2s both;
+}
+.hf-kicker .hf-mono {
+  padding: 5px 8px;
+  border: 1px solid var(--h-line);
+  border-radius: 4px;
+  color: var(--h-cyan);
+}
+.hf-title {
+  margin: 0;
+  font: 650 clamp(40px, 4vw + 14px, 86px) / 0.98 var(--font-display);
+  letter-spacing: -0.05em;
+  text-wrap: balance;
+}
+.hf-title-accent {
+  color: var(--h-cyan);
+  text-shadow: 0 0 40px rgba(94, 224, 255, 0.35);
+}
+.hf-lead {
+  max-width: 52ch;
+  margin: 24px 0 0;
+  color: var(--h-ink-2);
+  font-size: 16.5px;
+  line-height: 1.6;
+  animation: cine-up 1s var(--c-ease) 0.9s both;
+}
+.hf-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 30px;
+  animation: cine-up 1s var(--c-ease) 1.05s both;
+}
+.hf-hint {
+  margin: 10px 0 0;
+  color: var(--h-ink-3);
+  font: 500 12px var(--mono);
+  animation: cine-fade 1s ease 1.2s both;
+}
+.hf-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 26px 0 0;
+  border-top: 1px solid var(--h-line);
+  animation: cine-fade 1s ease 1.3s both;
+}
+.hf-metrics > div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 4px;
+  padding: 14px 28px 0 0;
+  min-width: 120px;
+}
+.hf-metrics > div + div {
+  padding-left: 20px;
+  border-left: 1px solid var(--h-line);
+}
+.hf-metrics dt {
+  max-width: 17ch;
+  color: var(--h-ink-3);
+  font-size: 12.5px;
+}
+.hf-metrics dd {
+  margin: 0;
+  font: 300 40px/1 var(--font-display);
+  letter-spacing: -0.04em;
+}
+.hf-cells {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--h-line);
+  background: rgba(5, 10, 18, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.hf-cells li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  padding: 14px 20px 16px;
+  border-right: 1px solid var(--h-line);
+  animation: cine-up 0.9s var(--c-ease) var(--d, 900ms) both;
+}
+.hf-cells li.is-next {
+  background: linear-gradient(180deg, rgba(255, 181, 71, 0.08), transparent);
+}
+.hf-cell-code {
+  color: var(--h-ink-3);
+}
+.hf-cell-name {
+  grid-column: 1;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hf-cell-val {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
+  font: 300 26px/1 var(--font-display);
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+.hf-cell-gauge {
+  position: relative;
+  grid-column: 1 / -1;
+  height: 3px;
+  margin-top: 6px;
+  background: var(--h-line);
+}
+.hf-cell-gauge span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--g) * 100%);
+  background: var(--rc);
+  box-shadow: 0 0 10px var(--rc);
+  transition: width 0.6s var(--c-ease);
+}
+.hf-cell-gauge i {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: calc(var(--m) * 100%);
+  width: 1px;
+  background: var(--h-red);
+}
+.hf-cell-risk {
+  grid-column: 1 / -1;
+  color: var(--rc);
+  font-size: 12.5px;
+}
+.hf-cell-empty {
+  grid-column: 1 / 5;
+  color: var(--h-ink-3);
+}
+.hf-cell-badge {
+  display: flex !important;
+  align-items: center;
+  max-width: 190px;
+  color: var(--h-ink-3);
+  font: 500 11px/1.4 var(--mono);
+  letter-spacing: 0.04em;
+  border-right: 0 !important;
+}
+
+/* Уход первого экрана при прокрутке — текст поднимается и растворяется, сцена слегка отдаляется (только CSS,
+   анимация по прокрутке; без поддержки браузером — просто нет эффекта). */
+@supports (animation-timeline: view()) {
+  .cine:not([data-still]) .hf-copy {
+    animation: hf-copy-out linear both;
+    animation-timeline: view();
+    animation-range: exit 10% exit 90%;
+  }
+  .cine:not([data-still]) .hf-depth canvas {
+    animation: hf-scene-out linear both;
+    animation-timeline: view();
+    animation-range: exit 0% exit 100%;
+  }
+}
+@keyframes hf-copy-out {
+  to {
+    opacity: 0;
+    transform: translateY(-70px);
+    filter: blur(6px);
+  }
+}
+@keyframes hf-scene-out {
+  to {
+    opacity: 0.35;
+    transform: scale(1.06) translateY(30px);
+  }
+}
+
+/* ── Разделы ──────────────────────────────────────────────────────────────────────────────────────────── */
+.hf-sec {
+  position: relative;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: clamp(88px, 14vh, 160px) var(--gutter) 0;
+  scroll-margin-top: 20px;
+}
+.hf-section-head {
+  max-width: 720px;
+  margin-bottom: 48px;
+}
+.hf-section-head h2,
+.hf-end-card h2 {
+  margin: 0 0 14px;
+  font: 650 clamp(32px, 4vw, 58px) / 1.03 var(--font-display);
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+.hf-section-head p {
+  margin: 0;
+  color: var(--h-ink-2);
+  font-size: 17px;
+  line-height: 1.6;
+}
+.hf-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 28px 0 0;
+  color: var(--h-ink-3);
+  font: 500 12px/1.6 var(--mono);
+}
+.hf-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 7px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font: 600 10.5px/1.5 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.hf-tag-live {
+  color: var(--h-green);
+}
+.hf-tag-live::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.hf-tag-scheme {
+  color: var(--h-ink-3);
+  border-style: dashed;
+}
+
+/* ── 02 · Как работает: датчик → анализ → предупреждение ───────────────────────────────────────────── */
+.hf-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr) 56px minmax(0, 1fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hf-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 22px 20px;
+  border: 1px solid var(--h-line);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(94, 224, 255, 0.05), rgba(94, 224, 255, 0.01) 60%);
+  overflow: hidden;
+}
+.hf-stage-art {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 164px;
+  margin: 0 -22px 8px;
+  border-bottom: 1px solid var(--h-line);
+  background: radial-gradient(70% 90% at 50% 100%, rgba(30, 110, 190, 0.22), transparent 70%);
+}
+.hf-stage-n {
+  color: var(--h-cyan);
+}
+.hf-stage h3 {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+.hf-stage > p {
+  margin: 0;
+  color: var(--h-ink-2);
+  line-height: 1.6;
+}
+.hf-stage .hf-stage-live {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px dashed var(--h-line);
+  color: var(--h-ink);
+  font-size: 13.5px;
+}
+.hf-stage-live b {
+  font-weight: 600;
+}
+
+/* Датчик у реки: вода, мачта, сигнал. */
+.hf-art-sensor svg {
+  width: 100%;
+  max-width: 280px;
+  height: 100%;
+}
+.hf-bank {
+  fill: rgba(120, 200, 255, 0.07);
+  stroke: var(--h-line-2);
+}
+.hf-water path {
+  fill: rgba(94, 224, 255, 0.16);
+  stroke: var(--h-cyan);
+  stroke-width: 1.2;
+  animation: hf-waves 3.6s linear infinite;
+}
+@keyframes hf-waves {
+  to {
+    transform: translateX(60px);
+  }
+}
+.hf-mast,
+.hf-gauge-tick {
+  stroke: var(--h-ink);
+  stroke-width: 1.4;
+  fill: none;
+}
+.hf-gauge-tick {
+  stroke-width: 1;
+  opacity: 0.6;
+}
+.hf-box {
+  fill: var(--h-bg);
+  stroke: var(--h-cyan);
+  stroke-width: 1.4;
+}
+.hf-ping path {
+  fill: none;
+  stroke: var(--h-cyan);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  animation: hf-ping 1.8s ease-out infinite;
+}
+.hf-ping path:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.hf-ping path:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes hf-ping {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+
+/* Провод между шагами: по нему бежит сигнал (иллюстрация). */
+.hf-wire {
+  position: relative;
+  pointer-events: none;
+}
+.hf-wire::before {
+  content: '';
+  position: absolute;
+  top: 82px;
+  left: -1px;
+  right: -1px;
+  border-top: 1px dashed var(--h-line-2);
+}
+.hf-packet {
+  position: absolute;
+  top: 78px;
+  left: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--h-cyan);
+  box-shadow:
+    0 0 12px var(--h-cyan),
+    -14px 0 10px -4px rgba(94, 224, 255, 0.5);
+  animation: hf-packet 2.2s var(--c-ease-in-out) infinite;
+}
+.hf-wire + li + .hf-wire .hf-packet {
+  animation-delay: 1.1s;
+}
+@keyframes hf-packet {
+  0% {
+    left: -4px;
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(100% - 5px);
+    opacity: 0;
+  }
+}
+
+/* Анализ: шкала уровня до опасного порога (+25 %), учебные пороги. */
+.hf-art-analysis {
+  gap: 22px;
+  padding: 0 22px;
+}
+.hf-meter {
+  position: relative;
+  width: 22px;
+  height: 120px;
+  border: 1px solid var(--h-line-2);
+  border-radius: 4px;
+  background: rgba(5, 10, 18, 0.6);
+  overflow: hidden;
+}
+.hf-meter-fill {
+  position: absolute;
+  inset: auto 0 0;
+  height: calc(var(--g) * 100%);
+  background: linear-gradient(0deg, var(--rc), color-mix(in srgb, var(--rc) 40%, transparent));
+  box-shadow: 0 0 16px var(--rc);
+  transition: height 0.8s var(--c-ease);
+}
+.hf-meter-mark {
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  bottom: calc(var(--m) * 100%);
+  height: 0;
+  border-top: 1.5px dashed var(--h-amber);
+}
+.hf-meter-mark.danger {
+  border-top-color: var(--h-red);
+}
+.hf-meter-read {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.hf-meter-val {
+  font: 300 32px/1 var(--font-display);
+  letter-spacing: -0.04em;
+}
+.hf-meter-risk {
+  color: var(--rc);
+  font-weight: 600;
+}
+.hf-meter-trend {
+  color: var(--h-ink-2);
+  font-size: 12.5px;
+}
+.hf-meter-legend {
+  margin-top: 6px;
+  color: var(--h-ink-3);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.hf-meter-legend i {
+  display: inline-block;
+  width: 12px;
+  vertical-align: middle;
+  border-top: 1.5px dashed var(--h-amber);
+}
+.hf-meter-legend i.danger {
+  border-top-color: var(--h-red);
+}
+
+/* Предупреждение: карточка как в журнале (данные сервера) или «всё спокойно». */
+.hf-art-alert {
+  padding: 0 18px;
+}
+.hf-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 280px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--rc) 55%, transparent);
+  border-left: 3px solid var(--rc);
+  border-radius: 8px;
+  background: rgba(5, 10, 18, 0.75);
+  box-shadow: 0 0 34px -8px color-mix(in srgb, var(--rc) 55%, transparent);
+  animation: hf-alert-in 0.8s var(--c-ease) both;
+}
+@keyframes hf-alert-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+}
+.hf-alert.is-calm {
+  --rc: var(--h-green);
+  align-items: center;
+  text-align: center;
+  border-left-width: 1px;
+}
+.hf-alert-sev {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--rc) 22%, transparent);
+  color: var(--rc);
+  font-size: 12px;
+  font-weight: 600;
+}
+.hf-alert-why {
+  color: var(--h-ink-2);
+  font-size: 12.5px;
+}
+.hf-life {
+  display: flex;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+}
+.hf-life li {
+  flex: 1;
+  padding-top: 6px;
+  border-top: 2px solid var(--h-line-2);
+  color: var(--h-ink-3);
+}
+.hf-life .is-done,
+.hf-life .is-current {
+  border-top-color: var(--rc);
+  color: var(--h-ink);
+}
+.hf-alert.is-calm .qmark {
+  color: var(--h-ink);
+}
+
+/* ── 03 · Путь волны: станции на шкале времени добегания ───────────────────────────────────────────── */
+.hf-track {
+  --rail-y: 22px;
+  position: relative;
+  padding: 0 0 8px;
+}
+.hf-track-rail {
+  position: absolute;
+  top: var(--rail-y);
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--h-line);
+  overflow: visible;
+}
+.hf-track-flow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: repeating-linear-gradient(90deg, rgba(94, 224, 255, 0.55) 0 14px, transparent 14px 34px);
+  opacity: 0.45;
+  animation: hf-flow 1.6s linear infinite;
+}
+@keyframes hf-flow {
+  to {
+    background-position: 34px 0;
+  }
+}
+.hf-track-threat {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  left: calc(var(--a) * 100%);
+  width: calc((var(--b) - var(--a)) * 100%);
+  border-radius: 4px;
+  background: repeating-linear-gradient(90deg, var(--rc) 0 10px, transparent 10px 16px);
+  box-shadow: 0 0 18px var(--rc);
+  animation: hf-flow 0.9s linear infinite;
+}
+.hf-track-threat.is-arrived {
+  background: var(--rc);
+}
+.hf-track-pulse {
+  position: absolute;
+  top: 50%;
+  width: 120px;
+  height: 26px;
+  margin: -13px 0 0 -60px;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(220, 250, 255, 0.95), rgba(94, 224, 255, 0.5) 40%, transparent);
+  mix-blend-mode: screen;
+  animation: hf-run 4.5s var(--c-ease-in-out) infinite;
+}
+.hf-track.has-threat .hf-track-pulse {
+  background: radial-gradient(closest-side, #fff, var(--rc) 45%, transparent);
+  animation-duration: 3s;
+}
+@keyframes hf-run {
+  0% {
+    left: calc(var(--a) * 100%);
+    opacity: 0;
+  }
+  12%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    left: calc(var(--b) * 100%);
+    opacity: 0;
+  }
+}
+.hf-track-stops {
+  position: relative;
+  height: 196px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hf-track-stops li {
+  position: absolute;
+  top: 0;
+  left: calc(var(--at) * 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 200px;
+  padding-top: 48px;
+  text-align: center;
+  transform: translateX(-50%);
+}
+.hf-track-stops li:first-child {
+  align-items: flex-start;
+  text-align: left;
+  transform: none;
+}
+.hf-track-stops li:last-child {
+  align-items: flex-end;
+  text-align: right;
+  transform: translateX(-100%);
+}
+.hf-track-dot {
+  position: absolute;
+  top: calc(var(--rail-y) - 7px);
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--rc);
+  background: var(--h-bg);
+  box-shadow: 0 0 0 5px rgba(5, 10, 18, 0.9), 0 0 16px var(--rc);
+}
+.hf-track-stops li:first-child .hf-track-dot {
+  left: -9px;
+}
+.hf-track-stops li:last-child .hf-track-dot {
+  right: -9px;
+}
+.hf-track-stops li.is-next .hf-track-dot::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--h-amber);
+  animation: hf-ring 1.8s ease-out infinite;
+}
+@keyframes hf-ring {
+  from {
+    transform: scale(0.6);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+/* Подпись над линией (соседняя станция рядом): место над шкалой появляется только когда оно нужно. */
+.hf-track.has-up {
+  padding-top: 132px;
+}
+.hf-track.has-up .hf-track-rail {
+  top: calc(132px + var(--rail-y));
+}
+.hf-track-stops li.is-up {
+  top: auto;
+  bottom: calc(100% - var(--rail-y) + 18px);
+  flex-direction: column-reverse;
+  padding-top: 0;
+}
+.hf-track-stops li.is-up .hf-track-dot {
+  top: auto;
+  bottom: -29px;
+}
+.hf-track-h {
+  color: var(--h-cyan);
+}
+.hf-track-stops b {
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+.hf-track-code {
+  color: var(--h-ink-3);
+}
+.hf-track-val {
+  color: var(--rc);
+  font-size: 13.5px;
+}
+.hf-track-next {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 181, 71, 0.16);
+  color: var(--h-amber);
+  font-size: 12px;
+  font-weight: 600;
+}
+.hf-wave-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 36px;
+}
+.hf-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid var(--h-line);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(94, 224, 255, 0.05), transparent);
+}
+.hf-card-n {
+  color: var(--h-cyan);
+}
+.hf-card h3 {
+  margin: 0;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+}
+.hf-card p {
+  flex: 1;
+  margin: 0;
+  color: var(--h-ink-2);
+  line-height: 1.55;
+}
+
+/* ── 04 · Настоящая система: снимки экрана с вкладками ────────────────────────────────────────────── */
+.hf-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+.hf-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid var(--h-line-2);
+  border-radius: 999px;
+  background: none;
+  color: var(--h-ink-2);
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    border-color 0.2s;
+}
+.hf-tabs .hf-mono {
+  color: var(--h-cyan);
+}
+.hf-tabs button:hover {
+  color: var(--h-ink);
+  border-color: rgba(94, 224, 255, 0.5);
+}
+.hf-tabs button[aria-selected='true'] {
+  background: var(--h-cyan);
+  border-color: var(--h-cyan);
+  color: #021018;
+}
+.hf-tabs button[aria-selected='true'] .hf-mono {
+  color: inherit;
+}
+.hf-shot-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr);
+  gap: clamp(24px, 3vw, 44px);
+  align-items: center;
+}
+.hf-shot {
+  margin: 0;
+  border: 1px solid var(--h-line-2);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--h-bg-2);
+  box-shadow:
+    0 40px 90px -30px rgba(0, 0, 0, 0.9),
+    0 0 80px -20px rgba(94, 224, 255, 0.28);
+  transform: perspective(1800px) rotateY(5deg) rotateX(2deg);
+  transform-origin: left center;
+  transition: transform 0.8s var(--c-ease);
+}
+.hf-shot:hover {
+  transform: none;
+}
+.hf-shot-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--h-line);
+  background: rgba(5, 10, 18, 0.9);
+  color: var(--h-ink-3);
+}
+.hf-shot-bar i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--h-line-2);
+}
+.hf-shot-bar span {
+  margin-left: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hf-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1440 / 900;
+  animation: hf-shot-in 0.6s var(--c-ease);
+}
+@keyframes hf-shot-in {
+  from {
+    opacity: 0;
+    transform: scale(1.015);
+  }
+}
+.hf-shot-text h3 {
+  margin: 0 0 10px;
+  font-size: clamp(22px, 2.2vw, 30px);
+  letter-spacing: -0.03em;
+}
+.hf-shot-text > p {
+  margin: 0 0 22px;
+  color: var(--h-ink-2);
+  font-size: 16px;
+  line-height: 1.6;
+}
+.hf-shot-text .hf-shot-note {
+  margin: 18px 0 0;
+  color: var(--h-ink-3);
+  font: 500 12px/1.6 var(--mono);
+}
+
+/* ── 05 · Финал ──────────────────────────────────────────────────────────────────────────────────────── */
+.hf-end {
+  padding-bottom: 40px;
+}
+.hf-end-card {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(150px, 20vw, 230px) clamp(22px, 6vw, 72px) clamp(36px, 6vw, 64px);
+  border: 1px solid var(--h-line);
+  border-radius: 16px;
+  background:
+    radial-gradient(70% 90% at 100% 0%, rgba(94, 224, 255, 0.16), transparent 60%),
+    radial-gradient(60% 80% at 0% 100%, rgba(30, 90, 160, 0.25), transparent 60%),
+    var(--h-bg-2);
+}
+.hf-end-card h2 {
+  max-width: 17ch;
+  font-size: clamp(36px, 5.2vw, 76px);
+}
+.hf-end-lead {
+  max-width: 56ch;
+  margin: 0;
+  color: var(--h-ink-2);
+  font-size: 17px;
+  line-height: 1.6;
+}
+.hf-end-river {
+  position: absolute;
+  inset: 0 0 auto;
+  width: 100%;
+  height: clamp(140px, 20vw, 220px);
+  pointer-events: none;
+}
+.hf-end-river path {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hf-end-river .glow {
+  stroke: rgba(94, 224, 255, 0.16);
+  stroke-width: 12;
+}
+.hf-end-river .core {
+  stroke: rgba(170, 232, 255, 0.85);
+  stroke-width: 1.6;
+}
+/* Поток — пунктир из светлых точек, бегущий по течению (иллюстрация, как частицы в первом экране). */
+.hf-end-river .flow {
+  stroke: #dff8ff;
+  stroke-width: 2.4;
+  stroke-dasharray: 0.1 14;
+  animation: hf-river-flow 1.1s linear infinite;
+}
+@keyframes hf-river-flow {
+  to {
+    stroke-dashoffset: -14.1;
+  }
+}
+.hf-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 24px;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid var(--h-line);
+  color: var(--h-ink-3);
+  font-size: 13px;
+}
+.hf-foot-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--h-ink);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  font-size: 12px;
+}
+
+/* ── Адаптивность ────────────────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 1280px) {
+  .hf-status {
+    display: none;
+  }
+  .hf-links button {
+    padding: 0 14px;
+  }
+}
+@media (max-width: 1100px) {
+  .hf-cells {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .hf-cell-badge {
+    grid-column: 1 / -1;
+    max-width: none;
+    padding: 10px 20px !important;
+  }
+  .hf-cells li:nth-child(2n) {
+    border-right: 0;
+  }
+  .hf-cells li:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--h-line);
+  }
+  .hf-wave-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .hf-shot-grid {
+    grid-template-columns: 1fr;
+  }
+  .hf-shot {
+    transform: none;
+  }
+}
+@media (max-width: 960px) {
+  .hf-links,
+  .hf-tools .cine-lang,
+  .hf-tools .hf-btn {
+    display: none !important;
+  }
+  .hf-burger {
+    display: inline-flex;
+    align-items: center;
+  }
+  .hf-nav {
+    height: 56px;
+  }
+  .hf-hero::before {
+    display: none;
+  }
+  /* Узкий экран: своя компоновка, а не уменьшенный десктоп. Заголовок → река (отдельный кадр, подписи станций не
+     спорят с текстом) → пояснение → кнопки → числа → приборная полоса. Река видна уже на первом экране телефона. */
+  .hf-hero {
+    display: flex;
+    flex-direction: column;
+  }
+  .hf-copy {
+    display: contents;
+  }
+  .hf-copy > * {
+    margin-inline: var(--gutter);
+  }
+  .hf-kicker {
+    order: 1;
+    margin-top: 80px;
+    margin-bottom: 16px;
+  }
+  .hf-title {
+    order: 2;
+  }
+  .hf-depth {
+    position: relative;
+    order: 3;
+    height: clamp(260px, 42svh, 460px);
+    margin: 8px 0 0;
+  }
+  .hf-lead {
+    order: 4;
+    margin-top: 4px;
+  }
+  .hf-ctas {
+    order: 5;
+    margin-top: 22px;
+  }
+  .hf-hint {
+    order: 6;
+  }
+  .hf-metrics {
+    order: 7;
+    margin-bottom: 28px;
+  }
+  .hf-cells {
+    order: 8;
+  }
+  /* Шаги — вертикальная цепочка, сигнал бежит сверху вниз. */
+  .hf-flow {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 44px auto 44px auto;
+  }
+  .hf-wire::before {
+    top: -1px;
+    bottom: -1px;
+    left: 50%;
+    right: auto;
+    border-top: 0;
+    border-left: 1px dashed var(--h-line-2);
+  }
+  .hf-packet {
+    top: 0;
+    left: calc(50% - 4px);
+    animation-name: hf-packet-v;
+  }
+  @keyframes hf-packet-v {
+    0% {
+      top: -4px;
+      opacity: 0;
+    }
+    15%,
+    85% {
+      opacity: 1;
+    }
+    100% {
+      top: calc(100% - 5px);
+      opacity: 0;
+    }
+  }
+}
+/* Путь волны на узком экране — вертикальная шкала: станции сверху вниз, подписи справа. */
+@media (max-width: 760px) {
+  .hf-track {
+    --rail-x: 9px;
+    padding: 0;
+  }
+  .hf-track-rail {
+    top: 0;
+    bottom: 0;
+    left: var(--rail-x);
+    right: auto;
+    width: 4px;
+    height: auto;
+  }
+  .hf-track-flow {
+    background: repeating-linear-gradient(180deg, rgba(94, 224, 255, 0.55) 0 14px, transparent 14px 34px);
+    animation-name: hf-flow-v;
+  }
+  .hf-track-threat {
+    left: -1px;
+    right: -1px;
+    top: calc(var(--a) * 100%);
+    bottom: auto;
+    width: auto;
+    height: calc((var(--b) - var(--a)) * 100%);
+    background: repeating-linear-gradient(180deg, var(--rc) 0 10px, transparent 10px 16px);
+    animation-name: hf-flow-v;
+  }
+  @keyframes hf-flow-v {
+    to {
+      background-position: 0 34px;
+    }
+  }
+  .hf-track-pulse {
+    left: 50%;
+    width: 26px;
+    height: 110px;
+    margin: -55px 0 0 -13px;
+    animation-name: hf-run-v;
+  }
+  @keyframes hf-run-v {
+    0% {
+      top: calc(var(--a) * 100%);
+      opacity: 0;
+    }
+    12%,
+    80% {
+      opacity: 1;
+    }
+    100% {
+      top: calc(var(--b) * 100%);
+      opacity: 0;
+    }
+  }
+  .hf-track-stops {
+    display: flex;
+    flex-direction: column;
+    gap: 26px;
+    height: auto;
+  }
+  .hf-track-stops li,
+  .hf-track-stops li:first-child,
+  .hf-track-stops li:last-child {
+    position: relative;
+    left: auto;
+    align-items: flex-start;
+    width: auto;
+    padding: 0 0 0 44px;
+    text-align: left;
+    transform: none;
+  }
+  .hf-track.has-up {
+    padding-top: 0;
+  }
+  .hf-track.has-up .hf-track-rail {
+    top: 0;
+  }
+  .hf-track-stops li.is-up {
+    bottom: auto;
+    flex-direction: column;
+  }
+  .hf-track-stops li .hf-track-dot,
+  .hf-track-stops li.is-up .hf-track-dot,
+  .hf-track-stops li:first-child .hf-track-dot,
+  .hf-track-stops li:last-child .hf-track-dot {
+    bottom: auto;
+    top: 2px;
+    left: calc(var(--rail-x) - 7px);
+    right: auto;
+  }
+  /* Вертикально — отрезок от каждой станции к следующей, его вид — состояние связи из снимка (как на десктопе). */
+  .hf-track-rail {
+    display: none;
+  }
+  .hf-track-stops li:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    bottom: -24px;
+    left: calc(var(--rail-x) - 1px);
+    width: 4px;
+    border-radius: 4px;
+    background: repeating-linear-gradient(180deg, rgba(94, 224, 255, 0.5) 0 12px, transparent 12px 26px);
+    animation: hf-seg 1.6s linear infinite;
+  }
+  .hf-track-stops li.link-threat::before,
+  .hf-track-stops li.link-arrived::before {
+    --lc: var(--h-amber);
+    background: repeating-linear-gradient(180deg, var(--lc) 0 13px, transparent 13px 26px);
+    box-shadow: 0 0 14px var(--lc);
+    animation-duration: 0.9s;
+  }
+  @keyframes hf-seg {
+    to {
+      background-position: 0 26px;
+    }
+  }
+  .hf-track-stops li.lr-HIGH::before {
+    --lc: var(--h-red);
+  }
+  .hf-track-stops li.link-arrived::before {
+    background: var(--lc);
+  }
+  .hf-wave-cards {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 520px) {
+  .hf-btn:not(.sm) {
+    width: 100%;
+  }
+  .hf-brand {
+    padding: 0 16px;
+  }
+  .hf-title {
+    font-size: clamp(36px, 11vw, 48px);
+  }
+  .hf-lead {
+    font-size: 15.5px;
+  }
+  .hf-metrics > div {
+    min-width: 0;
+    flex: 1;
+    padding-right: 10px;
+  }
+  .hf-metrics > div + div {
+    padding-left: 10px;
+  }
+  .hf-metrics dd {
+    font-size: 30px;
+  }
+  .hf-metrics dt {
+    font-size: 11.5px;
+  }
+  .hf-cells li {
+    padding: 12px 14px;
+  }
+  .hf-cell-val {
+    font-size: 19px;
+  }
+  .hf-section-head p {
+    font-size: 16px;
+  }
+  .hf-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin-inline: calc(var(--gutter) * -1);
+    padding: 2px var(--gutter) 6px;
+    scrollbar-width: none;
+  }
+  .hf-tabs button {
+    flex: none;
+  }
+  .hf-foot {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

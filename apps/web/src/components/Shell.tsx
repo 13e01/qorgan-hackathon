@@ -72,7 +72,7 @@ export function Sidebar({
   return (
     <aside className="sidebar" id="sidebar" aria-label={t('nav.label')}>
       <div className="brand">
-        <a className="brand-home" href="#/dashboard" aria-label={t('nav.home')} onClick={onCloseMobile}>
+        <a className="brand-home" href="#/" aria-label={t('nav.home')} onClick={onCloseMobile}>
           <Logo />
         </a>
         <div className="brand-text">

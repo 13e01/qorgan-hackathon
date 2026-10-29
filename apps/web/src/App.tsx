@@ -1,9 +1,9 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { DemoPanel } from './components/DemoPanel';
 import { ROUTES, Sidebar, TopBar, type Route } from './components/Shell';
 import { LoginDialog, Notices } from './components/ui';
 import { useI18n } from './i18n';
-import { conceptRoute, type ConceptView } from './lib/cinema';
 import { browserStore, readSidebarCollapsed, writeSidebarCollapsed } from './lib/prefs';
 import { Admin } from './pages/Admin';
 import { Alerts } from './pages/Alerts';
@@ -28,26 +28,7 @@ function useRoute(): Route {
   return route;
 }
 
-// Прототипы главной страницы — отдельный файл сборки: рабочее приложение их не загружает.
-const ConceptsApp = lazy(() => import('./concepts').then((m) => ({ default: m.ConceptsApp })));
-
-/** Прототипы главной страницы (#/concepts…) рисуются вместо оболочки; все прежние маршруты — без изменений. */
-export function Root() {
-  const [concept, setConcept] = useState<ConceptView | null>(() => conceptRoute(location.hash));
-  useEffect(() => {
-    const on = () => setConcept(conceptRoute(location.hash));
-    window.addEventListener('hashchange', on);
-    return () => window.removeEventListener('hashchange', on);
-  }, []);
-  return concept ? (
-    <Suspense fallback={null}>
-      <ConceptsApp route={concept} />
-    </Suspense>
-  ) : (
-    <App />
-  );
-}
-
+/** Рабочая система (все разделы, кроме главной страницы). Загружается отдельным файлом сборки из Root.tsx. */
 export function App() {
   const { t } = useI18n();
   const { connection, live } = useStore();

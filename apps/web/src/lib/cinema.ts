@@ -1,22 +1,28 @@
-// Прототипы кинематографичной главной страницы (Eclipse Cinematic): маршруты и геометрия реки.
+// Главная страница Hydro Future: маршруты, геометрия реки и раскладка «Пути волны».
 // Геометрия — только проекция линии Есиля из OSM (esil-river.json) и координат станций из БД. Это схема для
 // композиции, а не модель течения или затопления: здесь ничего не считается о воде.
 
 import type { RiverFlow } from './flow';
 
-export const CONCEPT_IDS = ['a', 'b', 'c'] as const;
-export type ConceptId = (typeof CONCEPT_IDS)[number];
-export type ConceptView = { view: 'gallery' } | { view: 'concept'; id: ConceptId };
-
-/** `#/concepts` — выбор концепции, `#/concepts/a|b|c` — прототип. Всё остальное (null) — рабочее приложение. */
-export function conceptRoute(hash: string): ConceptView | null {
-  const path = hash.replace(/^#\/?/, '').split('?')[0]!.replace(/\/+$/, '');
-  if (path === 'concepts') return { view: 'gallery' };
-  const m = /^concepts\/([abc])$/.exec(path);
-  return m ? { view: 'concept', id: m[1] as ConceptId } : null;
+/** Части адреса после «#/» без параметров и хвостовых «/». */
+function hashPath(hash: string): string {
+  return hash.replace(/^#\/?/, '').split('?')[0]!.replace(/\/+$/, '');
 }
 
-export const conceptHash = (id?: ConceptId) => (id ? `#/concepts/${id}` : '#/concepts');
+/**
+ * Главная страница Hydro Future — пустой адрес, «#/» и «#/welcome». Старые адреса прототипов (#/concepts…) тоже
+ * ведут на главную: выбор концепций закрыт. Все разделы рабочей системы (#/dashboard и т. д.) — без изменений.
+ */
+export function isWelcomeHash(hash: string): boolean {
+  const p = hashPath(hash);
+  return p === '' || p === 'welcome' || p === 'concepts' || p.startsWith('concepts/');
+}
+
+/** Старый адрес прототипа, который нужно заменить на «#/» (без новой записи в истории). */
+export const isLegacyConceptHash = (hash: string) => hashPath(hash).startsWith('concepts');
+
+export const WELCOME_HASH = '#/';
+export const DASHBOARD_HASH = '#/dashboard';
 
 type LonLat = [number, number];
 interface RiverGeo {
@@ -100,15 +106,6 @@ export function riverAxis(geo: RiverGeo, stations: StationPos[], step = 2): Axis
   };
 }
 
-/** Координаты для подписи: 53°53′ N. */
-export function dms(value: number, pos: string, neg: string): string {
-  const v = Math.abs(value);
-  let d = Math.floor(v);
-  let m = Math.round((v - d) * 60);
-  if (m === 60) (d += 1), (m = 0);
-  return `${d}°${String(m).padStart(2, '0')}′ ${value >= 0 ? pos : neg}`;
-}
-
 /** Плавная линия через точки (Catmull-Rom → кубические Безье): русло без «изломов молнии» на крупном плане. */
 export function smoothPath(pts: Pt[]): string {
   if (pts.length < 2) return '';
@@ -124,27 +121,6 @@ export function smoothPath(pts: Pt[]): string {
   return d;
 }
 
-/**
- * Река через кадр по диагонали — как кадр с высоты: ось «верхняя → нижняя станция» идёт из точки from в точку to
- * (доли кадра, концы за краями), изгибы русла откладываются по нормали в том же масштабе (пропорции сохраняются).
- * В широком кадре река занимает правую часть (слева — текст), в портретном — верхнюю.
- */
-export function sweepRiver(axis: AxisRiver, width: number, height: number, portrait: boolean): { lines: Pt[][]; stations: Array<{ code: string } & Pt> } {
-  const [fx, fy, tx, ty] = portrait ? [-0.1, 0.4, 1.1, -0.04] : [0.5, 1.06, 0.78, -0.1];
-  const A = { x: fx * width, y: fy * height };
-  const B = { x: tx * width, y: ty * height };
-  const L = Math.hypot(B.x - A.x, B.y - A.y);
-  const n = { x: -(B.y - A.y) / L, y: (B.x - A.x) / L };
-  const map = ({ u, w }: { u: number; w: number }): Pt => ({
-    x: A.x + u * (B.x - A.x) + w * L * n.x,
-    y: A.y + u * (B.y - A.y) + w * L * n.y,
-  });
-  return {
-    lines: axis.lines.map((l) => l.map(map)),
-    stations: axis.stations.map((s) => ({ code: s.code, ...map(s) })),
-  };
-}
-
 /** Станции по течению и связь с нижней соседкой (время добегания из БД, состояние — из снимка сервера). */
 export function riverChain(flow: RiverFlow) {
   return flow.nodes.map((node) => ({ node, link: flow.links.find((l) => l.from === node.code) ?? null }));
@@ -154,4 +130,83 @@ export function riverChain(flow: RiverFlow) {
 export function totalTravelHours(flow: RiverFlow): number | null {
   const hs = flow.links.map((l) => l.travelHours).filter((h): h is number => h !== null);
   return hs.length ? Math.round(hs.reduce((a, b) => a + b, 0)) : null;
+}
+
+/**
+ * Сглаживание ломаной (Chaikin): углы срезаются, концы остаются на месте. Русло в перспективной сцене перестаёт
+ * быть «молнией» из мелких зубцов OSM, а форма реки и положение станций не меняются.
+ */
+export function chaikin<T extends { u: number; w: number }>(pts: T[], iterations = 2): Array<{ u: number; w: number }> {
+  let cur: Array<{ u: number; w: number }> = pts.map((p) => ({ u: p.u, w: p.w }));
+  for (let it = 0; it < iterations && cur.length > 2; it++) {
+    const next = [cur[0]!];
+    for (let i = 0; i < cur.length - 1; i++) {
+      const a = cur[i]!;
+      const b = cur[i + 1]!;
+      next.push({ u: a.u * 0.75 + b.u * 0.25, w: a.w * 0.75 + b.w * 0.25 }, { u: a.u * 0.25 + b.u * 0.75, w: a.w * 0.25 + b.w * 0.75 });
+    }
+    next.push(cur[cur.length - 1]!);
+    cur = next;
+  }
+  return cur;
+}
+
+const RANK = { NO_DATA: -1, LOW: 0, MEDIUM: 1, HIGH: 2 } as const;
+
+/**
+ * Станция для рассказа «Как работает»: самая тревожная по данным сервера; при равенстве — та, у которой уровень
+ * ближе к опасному порогу. null — измерений нет ни на одной станции.
+ */
+export function focusStation(flow: RiverFlow): RiverFlow['nodes'][number] | null {
+  let best: RiverFlow['nodes'][number] | null = null;
+  for (const n of flow.nodes) {
+    if (n.levelCm === null) continue;
+    if (!best || RANK[n.risk] > RANK[best.risk] || (RANK[n.risk] === RANK[best.risk] && (n.gauge ?? 0) > (best.gauge ?? 0))) best = n;
+  }
+  return best;
+}
+
+export interface WaveStop {
+  code: string;
+  /** Положение на шкале 0…1 — по накопленному времени добегания из БД (если его нет — равные шаги). */
+  at: number;
+  /** Часов от верхней станции по схеме; null — время добегания не задано. */
+  hoursFromHead: number | null;
+}
+
+export interface WaveTimeline {
+  stops: WaveStop[];
+  totalHours: number | null;
+  /** Угроза по данным снимка: откуда (станция с риском) и к какой станции ниже она идёт. null — все связи спокойны. */
+  threat: { from: string; to: string; risk: 'MEDIUM' | 'HIGH' | null; travelHours: number | null; arrived: boolean } | null;
+}
+
+/**
+ * Раскладка «Пути волны»: станции по течению на шкале времени добегания (из БД) и текущая угроза из снимка.
+ * Ничего не прогнозирует — только располагает уже известные значения.
+ */
+export function waveTimeline(flow: RiverFlow): WaveTimeline {
+  const n = flow.nodes.length;
+  const hours: Array<number | null> = [];
+  let acc: number | null = 0;
+  flow.nodes.forEach((node, i) => {
+    if (i > 0) {
+      const link = flow.links.find((l) => l.to === node.code);
+      acc = acc === null || !link || link.travelHours === null ? null : acc + link.travelHours;
+    }
+    hours.push(acc);
+  });
+  const total = n > 1 ? hours[n - 1]! : null;
+  const stops = flow.nodes.map((node, i) => ({
+    code: node.code,
+    at: n < 2 ? 0 : total ? hours[i]! / total : i / (n - 1),
+    hoursFromHead: total ? hours[i]! : null,
+  }));
+  // Самая верхняя неспокойная связь: волна там, где она начинается; «дошла» — если подъём у нижней подтверждён.
+  const link = flow.links.find((l) => l.state === 'threat') ?? flow.links.find((l) => l.state === 'arrived') ?? null;
+  return {
+    stops,
+    totalHours: total,
+    threat: link ? { from: link.from, to: link.to, risk: link.risk === 'LOW' ? null : link.risk, travelHours: link.travelHours, arrived: link.state === 'arrived' } : null,
+  };
 }

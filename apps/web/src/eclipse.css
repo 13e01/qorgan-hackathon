@@ -2042,3 +2042,34 @@ dialog::backdrop {
     padding: 20px 24px;
   }
 }
+
+/* ── Главная ↔ рабочая система (Root.tsx) ────────────────────────────────────────────────────────────────
+   Пока загружается часть интерфейса — пустой экран цвета этой части (без вспышки). Переход — перекрёстное
+   затухание View Transitions: старый кадр чуть приближается и растворяется, новый проявляется. При
+   prefers-reduced-motion переход не запускается вовсе (см. Root.tsx). */
+.boot {
+  min-height: 100vh;
+  background: var(--bg);
+}
+.boot-welcome {
+  background: #050a12;
+}
+::view-transition-old(root) {
+  animation: vt-out 0.34s cubic-bezier(0.4, 0, 1, 1) both;
+}
+::view-transition-new(root) {
+  animation: vt-in 0.42s cubic-bezier(0.16, 1, 0.3, 1) 0.06s both;
+}
+@keyframes vt-out {
+  to {
+    opacity: 0;
+    transform: scale(1.025);
+    filter: blur(4px);
+  }
+}
+@keyframes vt-in {
+  from {
+    opacity: 0;
+    transform: scale(0.99);
+  }
+}

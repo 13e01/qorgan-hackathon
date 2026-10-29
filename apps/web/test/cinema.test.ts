@@ -1,12 +1,12 @@
-// Прототипы главной страницы (Eclipse Cinematic): маршруты не задевают рабочее приложение, геометрия реки строится
-// из OSM и координат станций, цепочка станций и сумма добегания — из данных, тексты есть на трёх языках.
+// Главная страница Hydro Future: маршруты не задевают рабочую систему, геометрия реки строится из OSM и координат
+// станций, цепочка станций и шкала «Пути волны» — только из данных, тексты есть на трёх языках.
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { ROUTES } from '../src/components/Shell';
 import { DICTIONARIES } from '../src/i18n';
 import { ru } from '../src/i18n/ru';
-import { conceptHash, conceptRoute, CONCEPT_IDS, dms, riverAxis, riverChain, smoothPath, sweepRiver, totalTravelHours } from '../src/lib/cinema';
+import { chaikin, DASHBOARD_HASH, focusStation, isLegacyConceptHash, isWelcomeHash, riverAxis, riverChain, smoothPath, totalTravelHours, waveTimeline, WELCOME_HASH } from '../src/lib/cinema';
 import type { RiverFlow } from '../src/lib/flow';
 import river from '../src/map/esil-river.json';
 
@@ -18,21 +18,18 @@ const STATIONS = [
   { code: 'QRG-04', lat: 55.1165, lon: 69.2103, upstreamCode: 'QRG-03' },
 ];
 
-describe('маршруты прототипов', () => {
-  it('#/concepts — выбор, #/concepts/a|b|c — прототипы', () => {
-    expect(conceptRoute('#/concepts')).toEqual({ view: 'gallery' });
-    expect(conceptRoute('#/concepts/')).toEqual({ view: 'gallery' });
-    for (const id of CONCEPT_IDS) {
-      expect(conceptRoute(conceptHash(id))).toEqual({ view: 'concept', id });
-      expect(conceptRoute(`${conceptHash(id)}?still`)).toEqual({ view: 'concept', id });
-    }
+describe('маршруты', () => {
+  it('главная — пустой адрес, «#/» и «#/welcome»; старые адреса прототипов тоже ведут на главную', () => {
+    for (const h of ['', '#', '#/', '#/welcome', '#/?x=1', WELCOME_HASH, '#/concepts', '#/concepts/', '#/concepts/a', '#/concepts/b', '#/concepts/c']) expect(isWelcomeHash(h), h).toBe(true);
+    expect(isLegacyConceptHash('#/concepts/b')).toBe(true);
+    expect(isLegacyConceptHash('#/')).toBe(false);
   });
 
-  it('все прежние адреса остаются за рабочим приложением', () => {
-    for (const h of ['', '#', '#/', '#/dashboard', '#/alerts', '#/concepts/d', '#/concepts/a/b', '#/conceptsx']) expect(conceptRoute(h), h).toBeNull();
-    for (const r of ROUTES) expect(conceptRoute(`#/${r}`), r).toBeNull();
-    expect(ROUTES as readonly string[]).not.toContain('concepts');
-    // Главная страница по умолчанию не поменялась: пустой адрес по-прежнему открывает главную панель.
+  it('все разделы рабочей системы остаются за ней', () => {
+    for (const r of ROUTES) expect(isWelcomeHash(`#/${r}`), r).toBe(false);
+    expect(isWelcomeHash(DASHBOARD_HASH)).toBe(false);
+    expect(isWelcomeHash('#/conceptsx')).toBe(false);
+    expect(ROUTES as readonly string[]).not.toContain('welcome');
     expect(ROUTES[0]).toBe('dashboard');
   });
 });
@@ -56,16 +53,6 @@ describe('геометрия реки', () => {
     expect(riverAxis({ features: [] }, [])).toEqual({ lines: [], stations: [] });
   });
 
-  it('кадр: в широком — река в правой части (слева текст), в портретном — в верхней', () => {
-    const axis = riverAxis(river, STATIONS);
-    const wide = sweepRiver(axis, 1600, 900, false);
-    const tall = sweepRiver(axis, 900, 1600, true);
-    for (const s of wide.stations) expect(s.x, s.code).toBeGreaterThan(1600 * 0.4);
-    for (const s of tall.stations) expect(s.y, s.code).toBeLessThan(1600 * 0.45);
-    // Исток ниже устья: река течёт «вверх» по кадру.
-    expect(wide.stations[0]!.y).toBeGreaterThan(wide.stations[3]!.y);
-  });
-
   it('плавная линия: одна кривая Безье на каждый отрезок, без NaN', () => {
     const d = smoothPath([
       { x: 0, y: 0 },
@@ -78,10 +65,19 @@ describe('геометрия реки', () => {
     expect(smoothPath([{ x: 1, y: 1 }])).toBe('');
   });
 
-  it('подпись координат', () => {
-    expect(dms(53.8809, 'N', 'S')).toBe('53°53′ N');
-    expect(dms(69.2103, 'E', 'W')).toBe('69°13′ E');
-    expect(dms(54.9999, 'N', 'S')).toBe('55°00′ N');
+  it('сглаживание русла: концы на месте, точек больше, зубцы ниже, без NaN', () => {
+    const pts = [
+      { u: 0, w: 0 },
+      { u: 0.5, w: 0.2 },
+      { u: 1, w: 0 },
+    ];
+    const s = chaikin(pts, 2);
+    expect(s[0]).toEqual({ u: 0, w: 0 });
+    expect(s[s.length - 1]).toEqual({ u: 1, w: 0 });
+    expect(s.length).toBeGreaterThan(pts.length);
+    expect(Math.max(...s.map((p) => p.w))).toBeLessThan(0.2);
+    expect(s.some((p) => Number.isNaN(p.u) || Number.isNaN(p.w))).toBe(false);
+    expect(chaikin(pts.slice(0, 2), 3)).toHaveLength(2);
   });
 });
 
@@ -109,24 +105,70 @@ describe('цепочка станций', () => {
   });
 });
 
-describe('тексты и движение', () => {
-  it('все строки прототипов переведены на kk и en, слоган не скопирован с русского', () => {
+describe('«Путь волны» и станция для рассказа', () => {
+  type Node = RiverFlow['nodes'][number];
+  const node = (code: string, risk: Node['risk'], levelCm: number | null, gauge: number | null = null) => ({ code, name: code, risk, levelCm, gauge }) as Node;
+  const links = (states: Array<'calm' | 'threat' | 'arrived'>, hours: Array<number | null> = [51, 51, 17]): RiverFlow['links'] =>
+    states.map((state, i) => ({ from: 'ABCD'[i]!, to: 'ABCD'[i + 1]!, travelHours: hours[i]!, state, risk: state === 'calm' ? null : 'HIGH' }));
+
+  it('станции на шкале — по накопленному времени добегания из БД', () => {
+    const tl = waveTimeline({ nodes: ['A', 'B', 'C', 'D'].map((c) => node(c, 'LOW', 300)), links: links(['calm', 'calm', 'calm']), hasThreat: false });
+    expect(tl.totalHours).toBe(119);
+    expect(tl.stops.map((s) => s.hoursFromHead)).toEqual([0, 51, 102, 119]);
+    expect(tl.stops[0]!.at).toBe(0);
+    expect(tl.stops[3]!.at).toBe(1);
+    expect(tl.stops[2]!.at).toBeCloseTo(102 / 119, 6);
+    expect(tl.threat).toBeNull();
+  });
+
+  it('нет времени добегания — равные шаги и «—», а не выдуманные часы', () => {
+    const tl = waveTimeline({ nodes: ['A', 'B', 'C'].map((c) => node(c, 'LOW', null)), links: links(['calm', 'calm'], [51, null]), hasThreat: false });
+    expect(tl.totalHours).toBeNull();
+    expect(tl.stops.map((s) => s.at)).toEqual([0, 0.5, 1]);
+    expect(tl.stops.every((s) => s.hoursFromHead === null)).toBe(true);
+    expect(waveTimeline({ nodes: [], links: [], hasThreat: false })).toEqual({ stops: [], totalHours: null, threat: null });
+  });
+
+  it('угроза — самая верхняя неспокойная связь из снимка; «дошла» — если подъём у нижней подтверждён', () => {
+    const nodes = ['A', 'B', 'C', 'D'].map((c) => node(c, 'LOW', 300));
+    expect(waveTimeline({ nodes, links: links(['calm', 'threat', 'threat']), hasThreat: true }).threat).toEqual({ from: 'B', to: 'C', risk: 'HIGH', travelHours: 51, arrived: false });
+    expect(waveTimeline({ nodes, links: links(['arrived', 'calm', 'calm']), hasThreat: true }).threat).toMatchObject({ from: 'A', to: 'B', arrived: true });
+  });
+
+  it('станция для «Как работает»: самая тревожная, при равенстве — ближе к порогу; без данных — null', () => {
+    expect(focusStation({ nodes: [node('A', 'LOW', 300, 0.4), node('B', 'HIGH', 560, 0.9), node('C', 'MEDIUM', 320, 0.5)], links: [], hasThreat: true })!.code).toBe('B');
+    expect(focusStation({ nodes: [node('A', 'LOW', 300, 0.4), node('B', 'LOW', 330, 0.6)], links: [], hasThreat: false })!.code).toBe('B');
+    expect(focusStation({ nodes: [node('A', 'NO_DATA', null), node('B', 'NO_DATA', null)], links: [], hasThreat: false })).toBeNull();
+  });
+});
+
+describe('тексты и стили', () => {
+  const css = (f: string) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8');
+
+  it('все строки главной переведены на kk и en, слоган не скопирован с русского, строк прототипов нет', () => {
     const keys = (Object.keys(ru) as Array<keyof typeof ru>).filter((k) => k.startsWith('cine.'));
-    expect(keys.length).toBeGreaterThan(50);
+    expect(keys.length).toBeGreaterThan(70);
     for (const lang of ['kk', 'en'] as const) for (const k of keys) expect(DICTIONARIES[lang][k], `${lang}:${k}`).toBeTruthy();
     expect(DICTIONARIES.kk['cine.slogan.full']).not.toBe(ru['cine.slogan.full']);
     expect(DICTIONARIES.en['cine.cta.demo']).toBe('Watch the demo');
+    expect(keys.some((k) => k.startsWith('cine.proto.'))).toBe(false);
   });
 
-  it('общие правила «меньше движения» не ломают прототипы: внутри .cine движением управляет сама страница', () => {
-    const css = (f: string) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8');
+  it('общие правила «меньше движения» не трогают главную: внутри .cine движением управляет сама страница', () => {
     for (const f of ['styles.css', 'eclipse.css']) {
       const block = css(f).split('@media (prefers-reduced-motion: reduce)').slice(1).join('');
       expect(block, f).toContain(':not(.cine *)');
     }
-    // В режиме «без анимации» скрытое до анимации получает конечный вид.
-    const c = css('concepts/concepts.css');
-    expect(c).toMatch(/\.cine\[data-still\] \.mask-in/);
-    expect(c).toMatch(/\.cine\[data-still\] \.noir-bar/);
+    // Без движения скрытое до анимации получает конечный вид, бесконечные эффекты скрыты.
+    const c = css('welcome/welcome.css');
+    expect(c).toContain('.cine[data-still] .reveal');
+    expect(c).toContain('.cine[data-still] .hf-track-pulse');
+  });
+
+  it('стили главной не задевают рабочую систему: общие имена классов — только внутри .cine', () => {
+    // Класс .reveal есть и в eclipse.css (главная панель): без «.cine» перед ним панель становилась невидимой.
+    const c = css('welcome/welcome.css');
+    for (const cls of ['reveal', 'words', 'qmark', 'full-menu']) expect(c, cls).not.toMatch(new RegExp(`^\\.${cls}\\b`, 'm'));
+    expect(c).toContain('.cine .reveal {');
   });
 });
