@@ -4,6 +4,7 @@ import { buildApp } from './app';
 import { loadConfig, publicDeploymentProblems } from './config';
 import { migrate, openDb } from './db/connection';
 import { seed } from './db/seed';
+import { loadMlRuntime } from './ml/service';
 
 const config = loadConfig();
 if (config.publicDeployment) {
@@ -18,6 +19,7 @@ const version = migrate(db);
 const summary = seed(db, config.seedUsers, config.seedDevices);
 const userCount = Number(db.prepare('SELECT COUNT(*) AS n FROM users').get()?.n ?? 0);
 
+const ml = loadMlRuntime(config.mlModelPath);
 const app = await buildApp({
   db,
   sessionSecret: config.sessionSecret,
@@ -28,11 +30,19 @@ const app = await buildApp({
   secureCookies: config.publicDeployment,
   mqtt: config.mqtt.enabled ? { url: config.mqtt.url, username: config.mqtt.username, password: config.mqtt.password } : null,
   trustProxy: config.trustProxy,
+  ml,
+  telegram: config.telegram,
 });
 
 app.log.info(`БД ${config.dbPath}: схема v${version}, добавлено станций ${summary.stations}, пользователей ${summary.users}`);
 if (userCount === 0) app.log.warn('В БД нет пользователей — вход невозможен. Выполните `npm run setup`, затем `npm run db:reset`.');
 
+app.log.info(
+  ml.status === 'READY'
+    ? `ML Sentinel: модель ${ml.model?.modelVersion} загружена (учебная, параллельная оценка)`
+    : `ML Sentinel: ${ml.status}${ml.problem ? ` (${ml.problem})` : ''} — работает основная оценка риска`,
+);
+app.log.info(config.telegram ? `Telegram-бот: включён${config.telegram.allowedChatIds ? ' (список разрешённых чатов)' : ''}` : 'Telegram-бот: выключен (нет TELEGRAM_BOT_TOKEN)');
 app.log.info(config.publicDeployment ? 'Режим публичного размещения: cookie только по HTTPS, доверие прокси включено' : 'Локальный режим');
 
 const shutdown = async (signal: string) => {

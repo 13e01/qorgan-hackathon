@@ -12,7 +12,7 @@ import {
   type MeasurementPoint,
   type MlStationInput,
   type SentinelModel,
-} from '../src';
+} from '@qorgan/shared';
 
 const MODEL_PATH = resolve(import.meta.dirname, '../../../ml/models/sentinel-model.json');
 const raw = JSON.parse(readFileSync(MODEL_PATH, 'utf8'));

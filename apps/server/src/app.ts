@@ -11,6 +11,13 @@ import { RealtimeHub } from './realtime/hub';
 import { createSensorAdapter } from './mqtt/adapter';
 import { startMqttSubscriber, type MqttLinkState } from './mqtt/subscriber';
 import { buildSnapshot } from './realtime/snapshot';
+import { alertSummary } from './alerts/repository';
+import { latestMl, ML_DISABLED, type MlRuntime } from './ml/service';
+import { createEvaluator } from './risk/service';
+import { mlRoutes } from './routes/ml';
+import { telegramRoutes } from './routes/telegram';
+import { enqueueAlertNotifications } from './telegram/outbox';
+import { TelegramService, type BotStatusData, type TelegramOptions } from './telegram/service';
 import { adminRoutes } from './routes/admin';
 import { alertRoutes } from './routes/alerts';
 import { authRoutes } from './routes/auth';
@@ -41,6 +48,12 @@ export interface AppOptions {
   trustProxy?: boolean;
   /** Подписчик MQTT для внешних датчиков; не задан — MQTT выключен (тесты, сервер без брокера). */
   mqtt?: { url: string; username: string; password: string } | null;
+  /** QORGAN Sentinel: загруженная модель (loadMlRuntime). Не задано — ML выключена, всё остальное работает. */
+  ml?: MlRuntime;
+  /** Telegram-бот; null / не задано — выключен (нет токена). */
+  telegram?: TelegramOptions | null;
+  /** Планировщик циклов бота; в тестах — ручной. */
+  telegramScheduler?: Scheduler;
 }
 
 declare module 'fastify' {
@@ -48,6 +61,8 @@ declare module 'fastify' {
     simulation: SimulationRunner;
     realtime: RealtimeHub;
     sensorAdapter: ReturnType<typeof createSensorAdapter>;
+    telegram: TelegramService;
+    ml: MlRuntime;
   }
 }
 
@@ -104,7 +119,34 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     logError: (message, details) => app.log.error({ details }, message),
   });
   runner.recover();
-  hub = new RealtimeHub(() => buildSnapshot(db, runner, now().toISOString(), mqttState));
+  const ml = options.ml ?? ML_DISABLED;
+  hub = new RealtimeHub(() => buildSnapshot(db, runner, now().toISOString(), mqttState, ml));
+
+  // Данные для команд бота: те же публичные данные, что видит гость (текущий прогон, один момент asOf).
+  const botStatus = (): BotStatusData => {
+    const evaluator = createEvaluator(db, { computedAt: now().toISOString() });
+    const ctx = evaluator.context();
+    const alerts = alertSummary(db).active;
+    return {
+      mode: ctx.mode,
+      virtualTime: ctx.virtualTime,
+      ml: { status: ml.status, version: ml.model?.modelVersion ?? null },
+      stations: evaluator.evaluateAll().map(({ station, assessment: a }) => ({
+        code: station.code,
+        name: station.name,
+        levelCm: a.level.currentCm,
+        risk: a.risk,
+        mlCategory: evaluator.runId === null ? null : (latestMl(db, evaluator.runId, station.id, evaluator.asOf)?.category ?? null),
+      })),
+      alerts: alerts.map((x) => ({ stationName: x.stationName, severity: x.severity, openedAt: x.openedAt })),
+    };
+  };
+  const telegram = new TelegramService(
+    { db, scheduler: options.telegramScheduler ?? realScheduler, now, statusData: botStatus, log: (message, details) => app.log.warn({ details }, message) },
+    options.telegram ?? null,
+  );
+  app.decorate('telegram', telegram);
+  app.decorate('ml', ml);
 
   // Изменения состояния устройств (отклонённые сообщения, online/offline) — не чаще двух снимков в секунду.
   let deviceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -144,6 +186,7 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   if (subscriber) mqttState = subscriber.state();
 
   app.addHook('onClose', async () => {
+    telegram.close();
     await subscriber?.close();
     if (deviceTimer) clearTimeout(deviceTimer);
     runner.close();
@@ -159,7 +202,28 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await app.register(alertRoutes(db, now, () => hub.broadcastSnapshot({ type: 'alert' })));
   await app.register(adminRoutes(db, now, () => hub.broadcastSnapshot({ type: 'admin' }), { backupDir: options.backupDir }));
   await app.register(outlookRoutes(db, now));
-  await app.register(telemetryRoutes(db, simulatorToken, now, () => hub.broadcastSnapshot({ type: 'telemetry' }), mqttAdapterToken));
+  await app.register(mlRoutes(db, now, () => ml));
+  await app.register(telegramRoutes(db, now, telegram));
+  await app.register(
+    telemetryRoutes(
+      db,
+      simulatorToken,
+      now,
+      () => {
+        hub.broadcastSnapshot({ type: 'telemetry' });
+        telegram.kick();
+      },
+      mqttAdapterToken,
+      {
+        ml,
+        afterAlerts: telegram.enabled
+          ? ({ runId, tick, changes, evaluations, now: at }) =>
+              void enqueueAlertNotifications(db, runId, tick, changes, evaluations, at, { allowedChatIds: telegram.allowedChatIds, cooldownTicks: telegram.cooldownTicks })
+          : undefined,
+        onExtensionError: (where, err) => app.log.error({ err }, `Sentinel: ошибка ${where === 'ml' ? 'оценки ML' : 'очереди уведомлений'} (пакет принят)`),
+      },
+    ),
+  );
   await app.register(async (scope) => {
     scope.get('/ws', { websocket: true }, (socket) => hub.add(socket));
   });
@@ -173,5 +237,6 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
       return reply.type('text/html; charset=utf-8').header('cache-control', 'no-cache').send(html);
     });
   }
+  telegram.start();
   return app;
 }

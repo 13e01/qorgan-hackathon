@@ -6,6 +6,7 @@ import { PARAMETERS, type ParameterCode } from '@qorgan/shared';
 import { processAlerts, type AlertChange } from '../alerts/engine';
 import { transaction, type Db } from '../db/connection';
 import { AppError } from '../errors';
+import { persistMlAssessments, type MlRuntime } from '../ml/service';
 import { createEvaluator, loadRiskConfig, type StationEvaluation } from '../risk/service';
 import { externalTickAt, getRun, isExternalRun, updateRun, virtualTime, type RunInfo } from '../simulation/repository';
 
@@ -38,6 +39,17 @@ export type RejectCode =
   | 'REJECTED_UNIT'
   | 'REJECTED_RANGE'
   | 'REJECTED_TIME';
+
+/**
+ * Дополнения QORGAN Sentinel, выполняются в той же транзакции: параллельная оценка ML (после оценок T2)
+ * и постановка Telegram-уведомлений в очередь (после предупреждений). Ни то ни другое не меняет риск T2 и
+ * предупреждения; их ошибки не откатывают пакет.
+ */
+export interface IngestExtensions {
+  ml?: MlRuntime;
+  afterAlerts?: (ctx: { runId: number; tick: number; changes: AlertChange[]; evaluations: StationEvaluation[]; now: string }) => void;
+  onExtensionError?: (where: 'ml' | 'notify', err: unknown) => void;
+}
 
 export interface IngestResult {
   runId: number;
@@ -101,7 +113,7 @@ function resolveRun(db: Db, sender: Sender, req: IngestRequest, now: string): { 
   return { run, tick: run.currentTick };
 }
 
-export function ingest(db: Db, sender: Sender, req: IngestRequest, now: string): IngestResult {
+export function ingest(db: Db, sender: Sender, req: IngestRequest, now: string, extensions: IngestExtensions = {}): IngestResult {
   return transaction(db, () => {
     const { run, tick } = resolveRun(db, sender, req, now);
     const external = isExternalRun(run);
@@ -172,10 +184,24 @@ export function ingest(db: Db, sender: Sender, req: IngestRequest, now: string):
     const evaluator = createEvaluator(db, { runId: run.id, at: tickTime, computedAt: now });
     const evaluations = evaluator.evaluateAll();
     persistAssessments(db, run.id, tick, evaluations, evaluator.configVersion);
+    if (extensions.ml) {
+      try {
+        persistMlAssessments(db, extensions.ml, run.id, tick, tickTime, evaluations, now);
+      } catch (err) {
+        extensions.onExtensionError?.('ml', err);
+      }
+    }
     // Предупреждения — в той же транзакции, что и оценки, которые их вызвали (ТЗ §5.6).
     // Повторная отправка старого тика (tick < часов прогона) не меняет предупреждения: иначе снятое могло бы «ожить».
     const replay = run.currentTick !== null && tick < run.currentTick;
     const alerts = replay ? [] : processAlerts(db, run.id, tick, evaluations, now, loadRiskConfig(db).config.clearAfterLowCount);
+    if (alerts.length > 0 && extensions.afterAlerts) {
+      try {
+        extensions.afterAlerts({ runId: run.id, tick, changes: alerts, evaluations, now });
+      } catch (err) {
+        extensions.onExtensionError?.('notify', err);
+      }
+    }
 
     return { runId: run.id, tick, virtualTime: tickTime, accepted, duplicates, rejected, evaluations, alerts };
   });

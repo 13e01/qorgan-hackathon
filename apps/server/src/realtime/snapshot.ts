@@ -4,6 +4,7 @@
 import { describeSituation, type RiskSituation } from '@qorgan/shared';
 import { alertSummary, type AlertRow } from '../alerts/repository';
 import type { Db } from '../db/connection';
+import { latestMl, ML_DISABLED, type MlRuntime, type MlStationView } from '../ml/service';
 import { deviceSummaries, type DeviceSummary } from '../mqtt/devices';
 import type { MqttLinkState } from '../mqtt/subscriber';
 import { createEvaluator, type EvaluationContext } from '../risk/service';
@@ -34,6 +35,8 @@ export interface StationSnapshot {
     /** Локальная обстановка отдельно от угрозы сверху по течению (см. describeSituation). */
     situation: RiskSituation;
   };
+  /** Параллельная оценка QORGAN Sentinel на тот же момент (null — модели нет или оценок ещё нет). */
+  ml: MlStationView | null;
 }
 
 export interface Snapshot {
@@ -45,9 +48,11 @@ export interface Snapshot {
   /** Внешние датчики (без токенов) и состояние связи QORGAN с MQTT-брокером. */
   devices: DeviceSummary[];
   mqtt: MqttLinkState;
+  /** Состояние модели ML: READY / DISABLED / MISSING / INVALID и её версия. */
+  mlModel: { status: string; version: string | null };
 }
 
-export function buildSnapshot(db: Db, runner: SimulationRunner, now: string, mqtt: MqttLinkState = 'disabled'): Snapshot {
+export function buildSnapshot(db: Db, runner: SimulationRunner, now: string, mqtt: MqttLinkState = 'disabled', mlRuntime: MlRuntime = ML_DISABLED): Snapshot {
   const simulation = runner.state();
   const evaluator = createEvaluator(db, { computedAt: now });
   const latest = db.prepare(
@@ -71,6 +76,7 @@ export function buildSnapshot(db: Db, runner: SimulationRunner, now: string, mqt
       }
     }
     const msg = lastMessage.get(station.id)?.last_message_at;
+    const mlRow = evaluator.runId === null || mlRuntime.status !== 'READY' ? null : latestMl(db, evaluator.runId, station.id, evaluator.asOf);
     return {
       id: station.id,
       code: station.code,
@@ -94,7 +100,8 @@ export function buildSnapshot(db: Db, runner: SimulationRunner, now: string, mqt
         topReasons: a.reasons.slice(0, 3),
         situation: describeSituation(a),
       },
+      ml: mlRow ? (({ result: _r, ...view }) => view)(mlRow) : null,
     };
   });
-  return { simulation, context: evaluator.context(), stations, alerts: alertSummary(db), devices: deviceSummaries(db, new Date(now)), mqtt };
+  return { simulation, context: evaluator.context(), stations, alerts: alertSummary(db), devices: deviceSummaries(db, new Date(now)), mqtt, mlModel: { status: mlRuntime.status, version: mlRuntime.model?.modelVersion ?? null } };
 }

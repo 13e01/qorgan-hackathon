@@ -7,7 +7,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Db } from '../db/connection';
 import { AppError, parse } from '../errors';
-import { ingest, type Sender } from '../telemetry/ingest';
+import { ingest, type IngestExtensions, type Sender } from '../telemetry/ingest';
 
 const sha256 = (s: string) => createHash('sha256').update(s).digest();
 
@@ -31,7 +31,14 @@ const bodySchema = z.object({
     .max(500),
 });
 
-export function telemetryRoutes(db: Db, simulatorToken: string, now: () => Date, onIngested: () => void, mqttAdapterToken?: string) {
+export function telemetryRoutes(
+  db: Db,
+  simulatorToken: string,
+  now: () => Date,
+  onIngested: () => void,
+  mqttAdapterToken?: string,
+  extensions: IngestExtensions = {},
+) {
   const simulatorDigest = sha256(simulatorToken);
   const adapterDigest = mqttAdapterToken ? sha256(mqttAdapterToken) : null;
   return async (app: FastifyInstance) => {
@@ -78,7 +85,7 @@ export function telemetryRoutes(db: Db, simulatorToken: string, now: () => Date,
       if (sender.kind === 'device' && body.records.some((r) => r.source !== undefined)) {
         throw new AppError(400, 'VALIDATION', 'Поле source задаёт только симулятор');
       }
-      const result = ingest(db, sender, body, now().toISOString());
+      const result = ingest(db, sender, body, now().toISOString(), extensions);
       onIngested();
       return {
         runId: result.runId,

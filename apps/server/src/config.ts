@@ -24,6 +24,10 @@ export interface Config {
   seedDevices: SeedDevice[];
   /** Сколько прокси-узлов стоит перед сервером (для правильного IP клиента в журнале и ограничении попыток входа). */
   trustProxy: boolean;
+  /** QORGAN Sentinel: файл модели ML; null — ML выключена (ML_ENABLED=false). */
+  mlModelPath: string | null;
+  /** Telegram-бот; null — нет TELEGRAM_BOT_TOKEN (бот выключен, QORGAN работает как обычно). */
+  telegram: { token: string; allowedChatIds: Set<string> | null; publicUrl: string | null; apiBase?: string; cooldownTicks?: number } | null;
 }
 
 /** Пароли из .env.example — только для локального показа; в публичном размещении запрещены. */
@@ -82,6 +86,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       ? [{ deviceId: env.SENSOR_DEVICE_ID ?? 'PY-SENSOR-01', name: env.SENSOR_NAME ?? 'Python-датчик уровня', stationCode: env.SENSOR_STATION ?? 'QRG-03', token: env.SENSOR_TOKEN }]
       : [],
     publicDeployment: env.PUBLIC_DEPLOYMENT === 'true',
+    mlModelPath: env.ML_ENABLED === 'false' ? null : fromRoot(env.ML_MODEL_PATH ?? 'ml/models/sentinel-model.json'),
+    telegram: telegramConfig(env),
     trustProxy: env.TRUST_PROXY === 'true' || env.PUBLIC_DEPLOYMENT === 'true',
+  };
+}
+
+/** Настройки Telegram. Токен — только из окружения (.env), в git и в журнал не попадает. */
+function telegramConfig(env: NodeJS.ProcessEnv): Config['telegram'] {
+  const token = (env.TELEGRAM_BOT_TOKEN ?? '').trim();
+  if (!token || token === 'replace-me') return null;
+  const ids = (env.TELEGRAM_ALLOWED_CHAT_IDS ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+  return {
+    token,
+    allowedChatIds: ids.length ? new Set(ids) : null,
+    publicUrl: env.PUBLIC_URL?.trim() || `http://localhost:${env.PORT ?? 3000}`,
+    apiBase: env.TELEGRAM_API_BASE?.trim() || undefined,
+    cooldownTicks: env.TELEGRAM_COOLDOWN_TICKS ? Number(env.TELEGRAM_COOLDOWN_TICKS) : undefined,
   };
 }

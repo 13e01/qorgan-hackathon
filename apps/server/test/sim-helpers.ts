@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { buildApp } from '../src/app';
+import { buildApp, type AppOptions } from '../src/app';
 import type { Db } from '../src/db/connection';
 import type { Scheduler } from '../src/simulation/runner';
 import { login, testDb } from './helpers';
@@ -54,9 +54,9 @@ export interface SimContext {
   get(url: string, cookie?: string): Promise<{ status: number; body: any }>;
 }
 
-export async function simApp(db: Db = testDb(), clock = new TestClock()): Promise<SimContext> {
+export async function simApp(db: Db = testDb(), clock = new TestClock(), extra: Partial<AppOptions> = {}): Promise<SimContext> {
   const scheduler = new ManualScheduler();
-  const app = await buildApp({ db, sessionSecret: 'test-secret-'.padEnd(40, 'x'), sessionTtlHours: 12, scheduler, now: clock.now });
+  const app = await buildApp({ db, sessionSecret: 'test-secret-'.padEnd(40, 'x'), sessionTtlHours: 12, scheduler, now: clock.now, ...extra });
   const operator = await login(app, 'operator', 'operator-test-pass');
   const admin = await login(app, 'admin', 'admin-test-pass');
 
